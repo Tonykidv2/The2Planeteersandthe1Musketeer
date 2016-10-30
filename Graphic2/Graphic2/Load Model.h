@@ -1,5 +1,6 @@
 #pragma once
 #include <fstream>
+#include <fbxsdk.h>
 
 namespace LoadModel
 {
@@ -93,4 +94,72 @@ namespace LoadModel
 	}
 
 
+	bool* LoadFBX(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector)
+	{
+		FbxManager* g_pFbxManager = nullptr;
+		
+		if (g_pFbxManager == nullptr)
+		{
+			g_pFbxManager = FbxManager::Create();
+
+			FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+			g_pFbxManager->SetIOSettings(pIOsettings);
+		}
+
+		FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
+		FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
+
+		bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+
+		if (!Successs)
+			return false;
+
+		Successs = pImporter->Import(pFbxScene);
+		if (!Successs)
+			return false;
+
+		pImporter->Destroy();
+
+		FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
+
+		if (pFbxRootNode)
+		{
+			for (int i = 0; i < pFbxRootNode->GetChildCount(); i++)
+			{
+				FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
+				if (pFbxChildNode->GetNodeAttribute() == NULL)
+					continue;
+
+				FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+				if (AttributeType != FbxNodeAttribute::eMesh)
+					continue;
+
+				FbxMesh* pMesh = (FbxMesh*)pFbxChildNode->GetNodeAttribute();
+
+				FbxVector4* pVertices = pMesh->GetControlPoints();
+				
+				for (int j = 0; j < pMesh->GetPolygonCount(); j++)
+				{
+					
+					int iNumVertices = pMesh->GetPolygonSize(j);
+					assert(iNumVertices == 3);
+
+					for (int k = 0; k < iNumVertices; k++)
+					{
+						int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
+
+						DirectX::XMFLOAT4 vertex;
+						vertex.x = (float)pVertices[iControlPointIndex].mData[0];
+						vertex.y = (float)pVertices[iControlPointIndex].mData[1];
+						vertex.z = (float)pVertices[iControlPointIndex].mData[2];
+						vertex.w = 1;
+						pOutVertexVector.push_back(vertex);
+
+						
+					}
+				}
+			}
+		}
+	}
 }

@@ -155,6 +155,8 @@ public:
 	
 
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
+	
+	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	float calcdist(XMVECTOR v1, XMVECTOR v2);
 	bool Run();
@@ -459,7 +461,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
+	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
 #pragma endregion
 
 #pragma region Creating Deadpool
@@ -999,6 +1001,113 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 		XMFLOAT4 v0 = Model[i + 0].XYZW;
 		XMFLOAT4 v1 = Model[i + 1].XYZW;
 		XMFLOAT4 v2 = Model[i + 2].XYZW;
+	
+		XMFLOAT3 uv0 = Model[i + 0].UV;
+		XMFLOAT3 uv1 = Model[i + 1].UV;
+		XMFLOAT3 uv2 = Model[i + 2].UV;
+	
+		XMFLOAT4 deltaPos1 = XMFLOAT4(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z, v1.w - v0.w);
+		XMFLOAT4 deltaPos2 = XMFLOAT4(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z, v2.w - v0.w);
+	
+		XMFLOAT3 deltaUV1 = XMFLOAT3(uv1.x - uv0.x, uv1.y - uv0.y, uv1.z - uv0.z);
+		XMFLOAT3 deltaUV2 = XMFLOAT3(uv2.x - uv0.x, uv2.y - uv0.y, uv2.z - uv0.z);
+	
+		float ratio = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+	
+		XMFLOAT4 deltaPos1uv2 = XMFLOAT4(deltaPos1.x * deltaUV2.y, deltaPos1.y * deltaUV2.y, deltaPos1.z * deltaUV2.y, deltaPos1.w * deltaUV2.y);
+		XMFLOAT4 deltaPos2uv1 = XMFLOAT4(deltaPos2.x * deltaUV1.y, deltaPos2.y * deltaUV1.y, deltaPos2.z * deltaUV1.y, deltaPos2.w * deltaUV1.y);
+	
+		XMFLOAT3 tangent = XMFLOAT3((deltaPos1uv2.x - deltaPos2uv1.x) * ratio, (deltaPos1uv2.y - deltaPos2uv1.y) * ratio,
+			(deltaPos1uv2.z - deltaPos2uv1.z) * ratio);
+	
+		XMFLOAT4 deltaPos2uv1b = XMFLOAT4(deltaPos2.x * deltaUV1.x, deltaPos2.y * deltaUV1.x, deltaPos2.z * deltaUV1.x, deltaPos2.x * deltaUV1.x);
+		XMFLOAT4 deltaPos1uv2b = XMFLOAT4(deltaPos1.x * deltaUV2.x, deltaPos1.y * deltaUV2.x, deltaPos1.z * deltaUV2.x, deltaPos1.w * deltaUV2.x);
+	
+		XMFLOAT3 bitangent = XMFLOAT3((deltaPos2uv1b.x - deltaPos1uv2b.x) * ratio, (deltaPos2uv1b.y - deltaPos1uv2b.y) * ratio,
+			(deltaPos2uv1b.z - deltaPos1uv2b.z) * ratio);
+	
+	
+		Model[i + 0].Tangent = tangent;
+		Model[i + 1].Tangent = tangent;
+		Model[i + 2].Tangent = tangent;
+	
+		Model[i + 0].BiTangent = tangent;
+		Model[i + 1].BiTangent = tangent;
+		Model[i + 2].BiTangent = tangent;
+	}
+
+#pragma region VertexBuffer Model
+
+	D3D11_BUFFER_DESC ModelbufferDesc;
+	ZeroMemory(&ModelbufferDesc, sizeof(ModelbufferDesc));
+	ModelbufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	ModelbufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	ModelbufferDesc.ByteWidth = sizeof(VERTEX) * vert_indices.size();
+
+	D3D11_SUBRESOURCE_DATA sub_data_Model;
+	ZeroMemory(&sub_data_Model, sizeof(sub_data_Model));
+	sub_data_Model.pSysMem = Model;
+	device->CreateBuffer(&ModelbufferDesc, &sub_data_Model, VertexBuffer);
+
+#pragma endregion
+
+#pragma region IndexBuffer Model
+
+	D3D11_BUFFER_DESC indexBuffDesc_Model;
+	ZeroMemory(&indexBuffDesc_Model, sizeof(indexBuffDesc_Model));
+	indexBuffDesc_Model.Usage = D3D11_USAGE_IMMUTABLE;
+	indexBuffDesc_Model.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBuffDesc_Model.ByteWidth = sizeof(unsigned int) * vert_indices.size();
+
+	D3D11_SUBRESOURCE_DATA indexData_Model;
+	ZeroMemory(&indexData_Model, sizeof(indexData_Model));
+	indexData_Model.pSysMem = ModelIndices;
+	device->CreateBuffer(&indexBuffDesc_Model, &indexData_Model, IndexBuffer);
+
+#pragma endregion
+
+	*IndexCount = vert_indices.size();
+	delete[] Model;
+	delete[] ModelIndices;
+
+	verts.clear();
+	uvs.clear();
+	norms.clear();
+	vert_indices.clear();
+	uvs_indices.clear();
+	norm_indices.clear();
+}
+
+void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
+	unsigned int* IndexCount)
+{
+
+	vector<XMFLOAT4> verts;
+	vector<XMFLOAT3> norms;
+	vector<XMFLOAT3> uvs;
+	vector<unsigned int> vert_indices, norm_indices, uvs_indices;
+
+	LoadModel::LoadObj(Path, verts, uvs, norms,
+		vert_indices, uvs_indices, norm_indices);
+	verts.clear();
+	LoadModel::LoadFBX("SwordFBX.fbx", verts);
+
+	VERTEX* Model = new VERTEX[vert_indices.size()];
+	unsigned int* ModelIndices = new unsigned int[vert_indices.size()];
+
+	for (unsigned int i = 0; i < vert_indices.size(); i++)
+	{
+		Model[i].XYZW = verts[i];//[vert_indices[i]];
+		Model[i].UV = uvs[uvs_indices[i]];
+		Model[i].normals = norms[norm_indices[i]];
+		ModelIndices[i] = i;
+	}
+
+	for (unsigned int i = 0; i < vert_indices.size(); i += 3)
+	{
+		XMFLOAT4 v0 = Model[i + 0].XYZW;
+		XMFLOAT4 v1 = Model[i + 1].XYZW;
+		XMFLOAT4 v2 = Model[i + 2].XYZW;
 
 		XMFLOAT3 uv0 = Model[i + 0].UV;
 		XMFLOAT3 uv1 = Model[i + 1].UV;
@@ -1029,11 +1138,10 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 		Model[i + 1].Tangent = tangent;
 		Model[i + 2].Tangent = tangent;
 
-		Model[i + 0].BiTangent = tangent;
-		Model[i + 1].BiTangent = tangent;
-		Model[i + 2].BiTangent = tangent;
+		//Model[i + 0].BiTangent = bitangent;
+		//Model[i + 1].BiTangent = bitangent;
+		//Model[i + 2].BiTangent = bitangent;
 	}
-
 #pragma region VertexBuffer Model
 
 	D3D11_BUFFER_DESC ModelbufferDesc;
