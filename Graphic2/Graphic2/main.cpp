@@ -219,6 +219,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&TesselScale, sizeof(TesselScale));
 	TesselScale.scale.x = 1.0f;
 
+	
 #pragma endregion
 
 	//thread thread1(&DEMO_APP::CreateVertexIndexBufferModel, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
@@ -1537,6 +1538,8 @@ bool DEMO_APP::Run()
 
 	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
+	/*Font* kk= new Font();
+	kk->LoadFont("FontFormat.txt");*/
 #pragma region Drawing Star
 
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
