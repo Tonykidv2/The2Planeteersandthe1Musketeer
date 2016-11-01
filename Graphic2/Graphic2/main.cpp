@@ -22,7 +22,10 @@
 #include "HullTriangleShader.csh"
 #include "VertexTriangleShader.csh"
 #include "PixelTriangleShader.csh"
-
+#include "Font.h"
+#include "SpriteBatch.h"
+#include "SimpleMath.h"
+#include"SpriteFont.h"
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
 
@@ -64,6 +67,7 @@ class DEMO_APP
 	ID3D11Buffer*					VertexBufferSource = nullptr;
 	ID3D11Buffer*					IndexBufferSource = nullptr;
 
+	
 	//Instances
 	ID3D11Buffer*					InstanceBuffer;
 	ID3D11Buffer*					DeadpoolInstanceVertexBuffer = nullptr;
@@ -93,6 +97,7 @@ class DEMO_APP
 	ID3D11ShaderResourceView*		DeadpoolNORMShaderView;
 	ID3D11SamplerState*				sampleTexture;
 
+	
 	//RasterStates
 	ID3D11RasterizerState*			DefaultRasterState;
 	ID3D11RasterizerState*			SkyBoxRasterState;
@@ -136,6 +141,11 @@ class DEMO_APP
 	SEND_TO_VRAM_WORLD WorldShader;
 	SEND_TO_VRAM_PIXEL VRAMPixelShader;
 	TRANSLATOR translating;
+	
+	
+	unique_ptr<SpriteBatch>spritebatch;
+	unique_ptr<SpriteFont> m_textFont;
+	ID3D11ShaderResourceView* m_text;
 
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
@@ -227,7 +237,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//thread1.join();
 	//thread2.join();
 	//thread3.join();
-
+	
+	
 #pragma region Creating Star Shape
 
 	bool toggle = true;
@@ -268,7 +279,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	StarIndexCount = 60;
 #pragma endregion
-
+	
 #pragma region Creating Plane
 
 	LoadModel::LoadObj("PlaneSuper.obj", verts, uvs, norms,
@@ -895,7 +906,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	thread1.detach();
 	thread2.detach();
 	thread3.detach();
+#pragma region TEXT 
+	spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+	m_textFont.reset(new SpriteFont(g_pd3dDevice, L"Arial.spritefont"));
+	CreateDDSTextureFromFile(g_pd3dDevice, L"fontDDS.dds", NULL, &m_text);
 
+#pragma endregion
 	TimeWizard.Restart();
 }
 
@@ -1105,7 +1121,6 @@ float DEMO_APP::calcdist(XMVECTOR v1, XMVECTOR v2)
 bool DEMO_APP::Run()
 {
 	TimeWizard.Signal();
-
 
 	float timer = (float)TimeWizard.TotalTime();
 
@@ -1428,10 +1443,10 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+
 	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	/*Font* kk= new Font();
-	kk->LoadFont("FontFormat.txt");*/
+	
 #pragma region Drawing Star
 
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
@@ -1683,6 +1698,19 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+#pragma region Drawing Text
+
+	spritebatch->Begin();
+
+	//spritebatch->Draw(m_text,XMFLOAT2(100,100));
+	
+	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1),DirectX::Colors::DeepPink);
+	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+	spritebatch->End();
+	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
+#pragma endregion
+
 	g_pSwapChain->Present(0, 0);
 
 	return true; 
@@ -1736,6 +1764,7 @@ void DEMO_APP::Clean3d()
 	constantPixelBuffer->Release();
 	CostantBufferLights->Release();
 
+	
 	DefaultRasterState->Release();
 	SkyBoxRasterState->Release();
 
@@ -1770,7 +1799,10 @@ void DEMO_APP::Clean3d()
 	RasterStateWireFrameTriangle->Release();
 	RasterStateSoildTriangle->Release();
 	CostantBufferTessScale->Release();
-
+	//////AAron////////
+	m_text->Release();
+	 m_textFont.release();
+	 spritebatch.release();
 }
 
 //************************************************************
