@@ -25,7 +25,7 @@
 #include "Font.h"
 #include "SpriteBatch.h"
 #include "SimpleMath.h"
-#include"SpriteFont.h"
+#include "SpriteFont.h"
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
 
