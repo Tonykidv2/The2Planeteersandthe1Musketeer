@@ -102,9 +102,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>
-      </AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;libfbxsdk.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libfbxsdk.lib%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\Graphic2\x64\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;libfbxsdk.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;FBXImporter.lib;libfbxsdk.lib%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -120,7 +119,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\lib\vs2015\x64\debug;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\lib\vs2015\x64\debug;;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\Graphic2\x64\Debug</AdditionalLibraryDirectories>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;libfbxsdk.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -141,8 +140,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>
-      </AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\Graphic2\x64\Release</AdditionalLibraryDirectories>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;libfbxsdk.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libfbxsdk.lib%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -163,7 +161,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\lib\vs2015\x64\release;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\lib\vs2015\x64\release;;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\Graphic2\x64\Release</AdditionalLibraryDirectories>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;libfbxsdk.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -177,6 +175,7 @@
     <ClInclude Include="Defines.h" />
     <ClInclude Include="LightHelper.h" />
     <ClInclude Include="Load Model.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SharedDefines.h" />
     <ClInclude Include="XTime.h" />
@@ -379,6 +378,9 @@
   <ItemGroup>
     <ProjectReference Include="..\DirectXTK-master\DirectXTK_Desktop_2015_Win10.vcxproj">
       <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\FBXImporter\FBXImporter.vcxproj">
+      <Project>{eba8bd90-12e7-4ca5-bd0d-3108195d2489}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

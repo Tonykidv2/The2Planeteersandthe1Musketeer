@@ -29,6 +29,8 @@
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
 
+#define RELEASE(X) {if(X != NULL) X->Release()}
+
 ID3D11DeviceContext*	g_pd3dDeviceContext;
 IDXGISwapChain*			g_pSwapChain;
 ID3D11RenderTargetView* g_pRenderTargetView;
@@ -161,13 +163,17 @@ class DEMO_APP
 	POINT newPoint;
 	bool Checked;
 	bool ToggleBumpMap;
+	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
+	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
+
+	ID3D11Buffer* BindPoseVertex;
+	ID3D11Buffer* BindPoseIndex;
+	ID3D11ShaderResourceView* BindPoseTexture;
+	ID3D11ShaderResourceView* BindPoseNormTexture;
+	unsigned BindPoseIndexCount;
 
 public:
-	
 
-	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-	
-	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	float calcdist(XMVECTOR v1, XMVECTOR v2);
 	bool Run();
@@ -232,15 +238,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	
 #pragma endregion
-
-	//thread thread1(&DEMO_APP::CreateVertexIndexBufferModel, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	//thread thread2(&DEMO_APP::CreateVertexIndexBufferModel, this, &VertexBufferDeadpool, &IndexBufferDeadpool, g_pd3dDevice, "deadpool.obj", &DeadpoolIndexCount);
-	//thread thread3(&DEMO_APP::CreateVertexIndexBufferModel, this, &DeadpoolInstanceVertexBuffer, &DeadpoolInstanceIndexBuffer, g_pd3dDevice, "DeadpoolInstance.obj", &InstanceIndexCount);
-
-	//thread1.join();
-	//thread2.join();
-	//thread3.join();
-	
 	
 #pragma region Creating Star Shape
 
@@ -474,7 +471,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
+	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount);
 #pragma endregion
 
 #pragma region Creating Deadpool
@@ -654,7 +651,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	TesselDesc.ByteWidth = sizeof(Scaling);
 	TesselDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	g_pd3dDevice->CreateBuffer(&TesselDesc, NULL, &CostantBufferTessScale);
-
 #pragma endregion
 
 #pragma region Depth Buffer
@@ -727,7 +723,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(g_pd3dDevice, L"DeadPool_NORMAL.dds", NULL, &DeadpoolNORMShaderView);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"BrickWall_NORMAL.dds", NULL, &FloorNORMShaderView);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"DeadpoolSword_Normal.dds", NULL, &SwordNORMShaderView);
-
+	CreateDDSTextureFromFile(g_pd3dDevice, L"TestCube.dds", NULL, &BindPoseTexture);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"NormBindPoseTexture.dds", NULL, &BindPoseNormTexture);
 #pragma endregion
 
 #pragma region Sampler
@@ -902,19 +899,20 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-
-	//thread1.join();
-	//thread2.join();
-	//thread3.join();
 	thread1.detach();
 	thread2.detach();
 	thread3.detach();
+
 #pragma region TEXT 
 	spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
 	m_textFont.reset(new SpriteFont(g_pd3dDevice, L"Arial.spritefont"));
 	CreateDDSTextureFromFile(g_pd3dDevice, L"fontDDS.dds", NULL, &m_text);
 
 #pragma endregion
+
+	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
+	thread4.detach();
+
 	TimeWizard.Restart();
 
 
@@ -1113,7 +1111,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//verts.clear();
 	//norms.clear();
 	//uvs.clear();
-	LoadModel::LoadFBX("SwordFBX.fbx", verts, uvs, norms, tangent);
+	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
 
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];
@@ -1448,11 +1446,11 @@ bool DEMO_APP::Run()
 
 		if (prevPoint.x != newPoint.x)
 		{
-			m_viewMatrix = XMMatrixMultiply(m_viewMatrix, XMMatrixRotationY((prevPoint.x - newPoint.x) * .01f)); //Global
+			m_viewMatrix = XMMatrixMultiply(m_viewMatrix, XMMatrixRotationY((prevPoint.x - newPoint.x) * -.01f)); //Global
 		}
 		if (prevPoint.y != newPoint.y)
 		{
-			m_viewMatrix = XMMatrixMultiply(XMMatrixRotationX((prevPoint.y - newPoint.y) * .01f), m_viewMatrix); //LOCAL
+			m_viewMatrix = XMMatrixMultiply(XMMatrixRotationX((prevPoint.y - newPoint.y) * -.01f), m_viewMatrix); //LOCAL
 		}
 
 		prevPoint = newPoint;
@@ -1558,10 +1556,8 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
-
 	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	
 #pragma region Drawing Star
 
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
@@ -1702,6 +1698,48 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+#pragma region Drawing FBX BIND-POSE Box
+	translating.Translate = XMMatrixTranslation(2, 0, 0);
+	translating.Scale = 1.0f;
+	WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &BindPoseVertex, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	if (BindPoseIndex)
+		g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
+
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Rotation = XMMatrixIdentity();
+	translating.Scale = 1.0f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion
+
 #pragma region Drawing Floor
 
 	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
@@ -1729,89 +1767,89 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->DrawIndexed(PlaneIndexCount, 0, 0);
 #pragma endregion
 
-#pragma region Instancing Deadpool Wave
+//#pragma region Instancing Deadpool Wave
+//
+//	translating.Translate = XMMatrixTranslation(0, 0, 0);
+//	translating.Scale = .05f;
+//	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
+//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+//	
+//	stride = sizeof(VERTEX);
+//	
+//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+//	g_pd3dDeviceContext->VSSetShader(DirectVertShader[2], NULL, NULL);
+//	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+//	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
+//	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
+//	
+//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &DeadpoolInstanceVertexBuffer, &stride, &offsets);
+//	g_pd3dDeviceContext->IASetIndexBuffer(DeadpoolInstanceIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+//	
+//	if(DeadpoolInstanceIndexBuffer)
+//		g_pd3dDeviceContext->DrawInstanced(InstanceIndexCount, 4, 0, 0);
+//	
+//	translating.Translate = XMMatrixIdentity();
+//	translating.Scale = 1.0f;
+//	translating.Rotation = XMMatrixIdentity();
+//	WorldShader.worldMatrix = XMMatrixIdentity();
+//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+//	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+//	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+//	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+//#pragma endregion
 
-	translating.Translate = XMMatrixTranslation(0, 0, 0);
-	translating.Scale = .05f;
-	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-	
-	stride = sizeof(VERTEX);
-	
-	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-	g_pd3dDeviceContext->VSSetShader(DirectVertShader[2], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
-	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
-	
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &DeadpoolInstanceVertexBuffer, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(DeadpoolInstanceIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	
-	if(DeadpoolInstanceIndexBuffer)
-		g_pd3dDeviceContext->DrawInstanced(InstanceIndexCount, 4, 0, 0);
-	
-	translating.Translate = XMMatrixIdentity();
-	translating.Scale = 1.0f;
-	translating.Rotation = XMMatrixIdentity();
-	WorldShader.worldMatrix = XMMatrixIdentity();
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
-#pragma endregion
-
-#pragma region Drawing Tess. Triangle
-
-	translating.Translate = XMMatrixTranslation(3, 0, 0);
-	translating.Scale = .3f;
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-
-	
-	XMVECTOR DeadpoolPOS;
-	DeadpoolPOS.m128_f32[0] = 3.0f;
-	DeadpoolPOS.m128_f32[1] = TempXYZW.m128_f32[1];
-	DeadpoolPOS.m128_f32[2] = 0.0f;
-	
-	float distance = calcdist(TempXYZW, DeadpoolPOS);
-	
-	TesselScale.scale.x = distance;
-	
-	stride = sizeof(VERTEX);
-	offsets = 0;
-	
-	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
-	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-	g_pd3dDeviceContext->VSSetShader(vertexShaderTriangle, NULL, NULL);
-	g_pd3dDeviceContext->PSSetShader(pixelShaderTriangle, NULL, NULL);
-	g_pd3dDeviceContext->HSSetShader(hullShaderTriangle, NULL, NULL);
-	g_pd3dDeviceContext->DSSetShader(domainShaderTriangle, NULL, NULL);
-	g_pd3dDeviceContext->RSSetState(RasterStateWireFrameTriangle);
-	
-	if(IndexBufferDeadpool)
-		g_pd3dDeviceContext->Draw(DeadpoolIndexCount, 0);
-
-	ID3D11HullShader* temp1 = nullptr;
-	ID3D11DomainShader* temp2 = nullptr;
-	g_pd3dDeviceContext->HSSetShader(temp1, NULL, NULL);
-	g_pd3dDeviceContext->DSSetShader(temp2, NULL, NULL);
-	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
-
-	translating.Translate = XMMatrixTranslation(0, 0, 0);
-	translating.Scale = 1;
-	translating.Rotation = XMMatrixIdentity();
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-
-#pragma endregion
+//#pragma region Drawing Tess. Triangle
+//
+//	translating.Translate = XMMatrixTranslation(3, 0, 0);
+//	translating.Scale = .3f;
+//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+//
+//	
+//	XMVECTOR DeadpoolPOS;
+//	DeadpoolPOS.m128_f32[0] = 3.0f;
+//	DeadpoolPOS.m128_f32[1] = TempXYZW.m128_f32[1];
+//	DeadpoolPOS.m128_f32[2] = 0.0f;
+//	
+//	float distance = calcdist(TempXYZW, DeadpoolPOS);
+//	
+//	TesselScale.scale.x = distance;
+//	
+//	stride = sizeof(VERTEX);
+//	offsets = 0;
+//	
+//	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
+//	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
+//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+//	g_pd3dDeviceContext->VSSetShader(vertexShaderTriangle, NULL, NULL);
+//	g_pd3dDeviceContext->PSSetShader(pixelShaderTriangle, NULL, NULL);
+//	g_pd3dDeviceContext->HSSetShader(hullShaderTriangle, NULL, NULL);
+//	g_pd3dDeviceContext->DSSetShader(domainShaderTriangle, NULL, NULL);
+//	g_pd3dDeviceContext->RSSetState(RasterStateWireFrameTriangle);
+//	
+//	if(IndexBufferDeadpool)
+//		g_pd3dDeviceContext->Draw(DeadpoolIndexCount, 0);
+//
+//	ID3D11HullShader* temp1 = nullptr;
+//	ID3D11DomainShader* temp2 = nullptr;
+//	g_pd3dDeviceContext->HSSetShader(temp1, NULL, NULL);
+//	g_pd3dDeviceContext->DSSetShader(temp2, NULL, NULL);
+//	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
+//
+//	translating.Translate = XMMatrixTranslation(0, 0, 0);
+//	translating.Scale = 1;
+//	translating.Rotation = XMMatrixIdentity();
+//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+//
+//#pragma endregion
 
 #pragma region Drawing Text
 
@@ -1860,12 +1898,19 @@ void DEMO_APP::Clean3d()
 	IndexBufferPlane->Release();
 	VertexBufferSkyBox->Release();
 	IndexBufferSkyBox->Release();
-	VertexBufferSword->Release();
-	IndexBufferSword->Release();
-	VertexBufferDeadpool->Release();
-	IndexBufferDeadpool->Release();
-	VertexBufferSource->Release();
-	IndexBufferSource->Release();
+	if(VertexBufferSword)
+		VertexBufferSword->Release();
+	if(IndexBufferSword)
+		IndexBufferSword->Release();
+	if(VertexBufferDeadpool)
+		VertexBufferDeadpool->Release();
+	if(IndexBufferDeadpool)
+		IndexBufferDeadpool->Release();
+	if(VertexBufferSource)
+		VertexBufferSource->Release();
+	if(IndexBufferSource)
+		IndexBufferSource->Release();
+
 
 	DirectVertShader[0]->Release();
 	DirectPixShader[0]->Release();
@@ -1900,7 +1945,9 @@ void DEMO_APP::Clean3d()
 
 	InstanceBuffer->Release();
 	InstanceCostantBuffer->Release();
+	if(DeadpoolInstanceIndexBuffer)
 	DeadpoolInstanceIndexBuffer->Release();
+	if(DeadpoolInstanceVertexBuffer)
 	DeadpoolInstanceVertexBuffer->Release();
 
 
@@ -1916,8 +1963,8 @@ void DEMO_APP::Clean3d()
 	CostantBufferTessScale->Release();
 	//////AAron////////
 	m_text->Release();
-	 m_textFont.release();
-	 spritebatch.release();
+	m_textFont.release();
+	spritebatch.release();
 }
 
 //************************************************************
