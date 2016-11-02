@@ -60,7 +60,7 @@ DS_OUTPUT main(
 	//rasterized position
 	Output.vPosition = float4(
 		patch[0].pos * domain.x + patch[1].pos * domain.y + patch[2].pos * domain.z , 1);
-
+	
 
 	Output.norm = float3(
 		patch[0].norm * domain.x + 
@@ -87,13 +87,13 @@ DS_OUTPUT main(
 	Output.vPosition = mul(Output.vPosition, Translate);
 
 	Output.vPosition = mul(Output.vPosition, worldMatrix);
-	Output.wPosition = Output.vPosition;
+	Output.wPosition = Output.vPosition.xyz;
 	Output.vPosition = mul(Output.vPosition, viewMatrix);
 	Output.vPosition = mul(Output.vPosition, projectionMatrix);
 
-	Output.norm = mul(normalize(float4(Output.norm, 0)), worldMatrix);
-	Output.Tangent = mul(normalize(float4(Output.Tangent, 0)), worldMatrix);
-
+	Output.norm = mul(normalize(float4(Output.norm, 0)), worldMatrix).xyz;
+	Output.Tangent = mul(normalize(float4(Output.Tangent, 0)), worldMatrix).xyz;
+	Output.BiTangent = Output.Tangent;
 	return Output;
 
 }

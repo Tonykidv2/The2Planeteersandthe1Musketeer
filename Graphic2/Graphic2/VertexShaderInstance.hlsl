@@ -63,7 +63,7 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer, unsigned int id : SV_InstanceI
 
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMatrix);
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, world[id]);
-	sendToRasterizer.posW = sendToRasterizer.projectedCoordinate;
+	sendToRasterizer.posW = sendToRasterizer.projectedCoordinate.xyz;
 
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, viewMatrix);
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, projectionMatrix);

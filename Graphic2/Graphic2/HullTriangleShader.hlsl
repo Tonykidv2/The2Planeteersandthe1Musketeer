@@ -76,6 +76,6 @@ HS_CONTROL_POINT_OUTPUT main(
 	Output.norm = ip[i].norm;
 	Output.uv = ip[i].uv;
 	Output.Tangent = ip[i].Tangent;
-
+	Output.BiTangent = Output.Tangent;
 	return Output;
 }

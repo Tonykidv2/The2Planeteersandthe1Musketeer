@@ -202,7 +202,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//wndClass.hIcon			= LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_FSICON));
     RegisterClassEx( &wndClass );
 
-	RECT window_size = { 0, 0, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT };
+	RECT window_size = { 0, 0, (LONG)BACKBUFFER_WIDTH, (LONG)BACKBUFFER_HEIGHT };
 	AdjustWindowRect(&window_size, WS_OVERLAPPEDWINDOW, false);
 
 	window = CreateWindow(	L"DirectXApplication", L"GRAPHIC 2 PROJECT", WS_OVERLAPPEDWINDOW , 
@@ -340,7 +340,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&PlanebufferDesc, sizeof(PlanebufferDesc));
 	PlanebufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	PlanebufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	PlanebufferDesc.ByteWidth = sizeof(VERTEX) * vert_indices.size();
+	PlanebufferDesc.ByteWidth =(UINT)(sizeof(VERTEX) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA sub_data_plane;
 	ZeroMemory(&sub_data_plane, sizeof(sub_data_plane));
@@ -353,7 +353,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&indexBuffDesc_Plane, sizeof(indexBuffDesc_Plane));
 	indexBuffDesc_Plane.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBuffDesc_Plane.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffDesc_Plane.ByteWidth = sizeof(unsigned int) * vert_indices.size();
+	indexBuffDesc_Plane.ByteWidth = (UINT)(sizeof(unsigned int) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA indexData_Plane;
 	ZeroMemory(&indexData_Plane, sizeof(indexData_Plane));
@@ -362,7 +362,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-	PlaneIndexCount = vert_indices.size();
+	PlaneIndexCount = (unsigned int)vert_indices.size();
 	delete[] planeindices;
 	delete[] plane;
 
@@ -434,7 +434,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&Sky_BoxbufferDesc, sizeof(Sky_BoxbufferDesc));
 	Sky_BoxbufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	Sky_BoxbufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	Sky_BoxbufferDesc.ByteWidth = sizeof(VERTEX) * vert_indices.size();
+	Sky_BoxbufferDesc.ByteWidth =(UINT)(sizeof(VERTEX) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA sub_data_Sky_Box;
 	ZeroMemory(&sub_data_Sky_Box, sizeof(sub_data_Sky_Box));
@@ -447,7 +447,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&indexBuffDesc_SkyBox, sizeof(indexBuffDesc_SkyBox));
 	indexBuffDesc_SkyBox.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBuffDesc_SkyBox.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffDesc_SkyBox.ByteWidth = sizeof(unsigned int) * vert_indices.size();
+	indexBuffDesc_SkyBox.ByteWidth = (UINT)(sizeof(unsigned int) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA indexData_SkyBox;
 	ZeroMemory(&indexData_SkyBox, sizeof(indexData_SkyBox));
@@ -455,7 +455,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	g_pd3dDevice->CreateBuffer(&indexBuffDesc_SkyBox, &indexData_SkyBox, &IndexBufferSkyBox);
 #pragma endregion
 
-	SkyBoxIndexCount = vert_indices.size();
+	SkyBoxIndexCount = (unsigned int)vert_indices.size();
 	delete[] SkyBoxIndices;
 	delete[] sky_Box;
 
@@ -499,7 +499,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&LightSourcebufferDesc, sizeof(LightSourcebufferDesc));
 	LightSourcebufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	LightSourcebufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	LightSourcebufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * vert_indices.size();
+	LightSourcebufferDesc.ByteWidth = (UINT)(sizeof(SIMPLE_VERTEX) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA sub_data_LightSource;
 	ZeroMemory(&sub_data_LightSource, sizeof(sub_data_LightSource));
@@ -512,7 +512,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&indexBuffDesc_LightSource, sizeof(indexBuffDesc_LightSource));
 	indexBuffDesc_LightSource.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBuffDesc_LightSource.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffDesc_LightSource.ByteWidth = sizeof(unsigned int) * vert_indices.size();
+	indexBuffDesc_LightSource.ByteWidth = (UINT)(sizeof(unsigned int) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA indexData_LightSource;
 	ZeroMemory(&indexData_LightSource, sizeof(indexData_LightSource));
@@ -521,7 +521,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-	SourceIndexCount = vert_indices.size();
+	SourceIndexCount =(unsigned int)vert_indices.size();
 	delete[] lightSource;
 	delete[] lightSourceIndices;
 
@@ -659,8 +659,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//DXGI_FORMAT_D32_FLOAT
 	D3D11_TEXTURE2D_DESC texture2D;
 	ZeroMemory(&texture2D, sizeof(texture2D));
-	texture2D.Width = BACKBUFFER_WIDTH;
-	texture2D.Height = BACKBUFFER_HEIGHT;
+	texture2D.Width =(UINT) BACKBUFFER_WIDTH;
+	texture2D.Height = (UINT)BACKBUFFER_HEIGHT;
 	texture2D.Usage = D3D11_USAGE_DEFAULT;
 	texture2D.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	texture2D.Format = DXGI_FORMAT_D32_FLOAT;
@@ -932,8 +932,8 @@ void DEMO_APP::init3D(HWND hWnd)
 	scd.BufferCount = 1;                                    // one back buffer
 	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;     // use 32-bit color
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;      // how swap chain is to be used
-	scd.BufferDesc.Width = BACKBUFFER_WIDTH;
-	scd.BufferDesc.Height = BACKBUFFER_HEIGHT;
+	scd.BufferDesc.Width = (UINT)BACKBUFFER_WIDTH;
+	scd.BufferDesc.Height = (UINT)BACKBUFFER_HEIGHT;
 	scd.OutputWindow = hWnd;                                // the window to be used
 	scd.SampleDesc.Count = 4;                               // how many multisamples
 															//scd.SampleDesc.Quality = 1;								
@@ -1060,7 +1060,7 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 	ZeroMemory(&ModelbufferDesc, sizeof(ModelbufferDesc));
 	ModelbufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	ModelbufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	ModelbufferDesc.ByteWidth = sizeof(VERTEX) * vert_indices.size();
+	ModelbufferDesc.ByteWidth = (UINT)(sizeof(VERTEX) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA sub_data_Model;
 	ZeroMemory(&sub_data_Model, sizeof(sub_data_Model));
@@ -1075,7 +1075,7 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 	ZeroMemory(&indexBuffDesc_Model, sizeof(indexBuffDesc_Model));
 	indexBuffDesc_Model.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBuffDesc_Model.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffDesc_Model.ByteWidth = sizeof(unsigned int) * vert_indices.size();
+	indexBuffDesc_Model.ByteWidth = (UINT)(sizeof(unsigned int) * vert_indices.size());
 
 	D3D11_SUBRESOURCE_DATA indexData_Model;
 	ZeroMemory(&indexData_Model, sizeof(indexData_Model));
@@ -1084,7 +1084,7 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 
 #pragma endregion
 
-	*IndexCount = vert_indices.size();
+	*IndexCount = (unsigned int)vert_indices.size();
 	delete[] Model;
 	delete[] ModelIndices;
 
@@ -1170,7 +1170,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	ZeroMemory(&ModelbufferDesc, sizeof(ModelbufferDesc));
 	ModelbufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	ModelbufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	ModelbufferDesc.ByteWidth = sizeof(VERTEX) * verts.size();
+	ModelbufferDesc.ByteWidth = (UINT)(sizeof(VERTEX) * verts.size());
 
 	D3D11_SUBRESOURCE_DATA sub_data_Model;
 	ZeroMemory(&sub_data_Model, sizeof(sub_data_Model));
@@ -1185,7 +1185,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	ZeroMemory(&indexBuffDesc_Model, sizeof(indexBuffDesc_Model));
 	indexBuffDesc_Model.Usage = D3D11_USAGE_IMMUTABLE;
 	indexBuffDesc_Model.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffDesc_Model.ByteWidth = sizeof(unsigned int) * verts.size();
+	indexBuffDesc_Model.ByteWidth = (UINT)( sizeof(unsigned int) * verts.size());
 
 	D3D11_SUBRESOURCE_DATA indexData_Model;
 	ZeroMemory(&indexData_Model, sizeof(indexData_Model));
@@ -1194,7 +1194,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 
 #pragma endregion
 
-	*IndexCount = verts.size();
+	*IndexCount =(unsigned int) verts.size();
 	delete[] Model;
 	delete[] ModelIndices;
 
@@ -2030,8 +2030,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 							   //g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, NULL);
 							  
 
-							   float nWidth = Chaindsc.BufferDesc.Width;
-							   float nHeight = Chaindsc.BufferDesc.Height;
+							   float nWidth = (float)Chaindsc.BufferDesc.Width;
+							   float nHeight = (float)Chaindsc.BufferDesc.Height;
 
 							   // Set up the viewport.
 							   D3D11_VIEWPORT vp;
@@ -2048,8 +2048,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
 							   D3D11_TEXTURE2D_DESC texture2D;
 							   ZeroMemory(&texture2D, sizeof(texture2D));
-							   texture2D.Width = nWidth;
-							   texture2D.Height = nHeight;
+							   texture2D.Width = (UINT)nWidth;
+							   texture2D.Height = (UINT)nHeight;
 							   texture2D.Usage = D3D11_USAGE_DEFAULT;
 							   texture2D.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 							   texture2D.Format = DXGI_FORMAT_D32_FLOAT;

@@ -64,7 +64,7 @@ void main(
 		verts[i].pos = mul(verts[i].pos, viewMatrix);
 		verts[i].pos = mul(verts[i].pos, projectionMatrix);
 
-		verts[i].normal = mul(verts[i].pos, (float3x3)worldMatrix);
+		verts[i].normal = mul(verts[i].pos.xyz, (float3x3)worldMatrix);
 
 		output.Append(verts[i]);
 	}

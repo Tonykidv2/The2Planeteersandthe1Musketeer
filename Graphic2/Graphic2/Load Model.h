@@ -294,9 +294,9 @@ namespace LoadModel
 				pOutVertexVector.resize(lPolygonVertexCount);
 				//vertex_indices.reserve(PolygonCount);
 
-				if (mHasNormal);
+				//if (mHasNormal);
 					//pOutUVVector.reserve(lPolygonVertexCount);
-				if (mHasUV);
+				//if (mHasUV);
 					//pOutUVVector.reserve(lPolygonVertexCount);
 
 				// Populate the array with vertex attribute, if we hav all control point.

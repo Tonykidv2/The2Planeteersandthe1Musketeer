@@ -59,24 +59,25 @@ float4 main(INPUT_PIXEL colorFromRasterizer) : SV_TARGET
 {
 
 	float4 color = float4(0, 0, 0, 1);
+	//float3 color2 = float3(0, 0, 0);
 	float3 ColorNorm = float3(0, 0, 0);
 
 	if (WhichTexture == 0)
 	{
-		color = TEXTURE.Sample(FILTER, colorFromRasterizer.normal).rgba;
+		color = TEXTURE.Sample(FILTER, colorFromRasterizer.normal).xyzw;
 		return color;
 	}
-
+	
 	if (WhichTexture == 1)
 	{
-		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).rgba;
-		ColorNorm = TextureNorm.Sample(FILTER, colorFromRasterizer.uv).rgb;
+		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).xyzw;
+		ColorNorm = TextureNorm.Sample(FILTER, colorFromRasterizer.uv).xyz;
 	}
 
 	float3 newNormal = NormalCalcFunc(ColorNorm, colorFromRasterizer.Tangent , colorFromRasterizer.normal);
 
 	if (WhichTexture == 2)
-		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).rgba;
+		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).xyzw;
 
 	
 	float4 finalColor = float4(0, 0, 0, 1);
