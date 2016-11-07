@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "FBXImporter.h"
+#include "fbxsdk.h"
 
 
 // This is an example of an exported variable

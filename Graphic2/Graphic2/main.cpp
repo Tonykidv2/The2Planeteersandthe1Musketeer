@@ -170,18 +170,20 @@ class DEMO_APP
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-	ID3D11Buffer* BindPoseVertex;
-	ID3D11Buffer* BindPoseIndex;
-	ID3D11ShaderResourceView* BindPoseTexture;
-	ID3D11ShaderResourceView* BindPoseNormTexture;
+	ID3D11Buffer* BindPoseVertex = nullptr;
+	ID3D11Buffer* BindPoseIndex = nullptr;
+	ID3D11ShaderResourceView* BindPoseTexture = nullptr;
+	ID3D11ShaderResourceView* BindPoseNormTexture = nullptr;
 	unsigned BindPoseIndexCount;
-
+	DEMO_APP() {}
 public:
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	float calcdist(XMVECTOR v1, XMVECTOR v2);
+	static DEMO_APP *GetInstance();
 	bool Run();
 	bool ShutDown();
+	void ResizingOfWindows();
 };
 
 //************************************************************
@@ -945,7 +947,7 @@ void DEMO_APP::init3D(HWND hWnd)
 	scd.SampleDesc.Count = 4;                               // how many multisamples
 															//scd.SampleDesc.Quality = 1;								
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
-	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;		// Special Flags
+	scd.Flags = 0;		// Special Flags
 	scd.BufferDesc.Scaling = DXGI_MODE_SCALING_CENTERED;
 	scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 
@@ -1232,6 +1234,67 @@ float DEMO_APP::calcdist(XMVECTOR v1, XMVECTOR v2)
 	v.m128_f32[2] = v1.m128_f32[2] - v2.m128_f32[2];
 
 	return sqrt(v.m128_f32[0] *v.m128_f32[0] + v.m128_f32[1] *v.m128_f32[1] + v.m128_f32[2] *v.m128_f32[2]);
+}
+
+void DEMO_APP::ResizingOfWindows()
+{
+	if (g_pSwapChain == nullptr)
+	{
+		return;
+	}
+
+	g_pRenderTargetView->Release();
+	g_StencilView->Release();
+	g_TexBuffer->Release();
+	//pointer to thr back buffer
+
+	ID3D11Texture2D *tempBuffer;
+	g_pd3dDeviceContext->ClearState();
+	g_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+	HRESULT hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&tempBuffer);
+
+	DXGI_SWAP_CHAIN_DESC m_swapChainDesc;
+	g_pSwapChain->GetDesc(&m_swapChainDesc);
+
+	g_DirectView.Width = m_swapChainDesc.BufferDesc.Width;
+	g_DirectView.Height = m_swapChainDesc.BufferDesc.Height;
+	g_DirectView.MinDepth = 0.0f;
+	g_DirectView.MaxDepth = 1.0f;
+	g_DirectView.TopLeftX = 0;
+	g_DirectView.TopLeftY = 0;
+	g_pd3dDeviceContext->RSSetViewports(1, &g_DirectView);
+
+	g_pd3dDevice->CreateRenderTargetView(tempBuffer, NULL, &g_pRenderTargetView);
+
+	D3D11_TEXTURE2D_DESC m_texture2d = {};
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC d_stencil = {};
+
+	m_texture2d.Width = g_DirectView.Width;
+	m_texture2d.Height = g_DirectView.Height;
+	m_texture2d.Usage = D3D11_USAGE_DEFAULT;
+	m_texture2d.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	m_texture2d.Format = DXGI_FORMAT_D32_FLOAT;
+	m_texture2d.MipLevels = 1;
+	m_texture2d.ArraySize = 1;
+	m_texture2d.SampleDesc.Count = 4;
+	g_pd3dDevice->CreateTexture2D(&m_texture2d, NULL, &g_TexBuffer);
+
+	d_stencil.Format = DXGI_FORMAT_D32_FLOAT;
+	d_stencil.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	d_stencil.Texture2D.MipSlice = 0;
+	g_pd3dDevice->CreateDepthStencilView(g_TexBuffer, NULL, &g_StencilView);
+
+	g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
+
+	g_newProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(60), g_DirectView.Width / g_DirectView.Height, ZNEAR, ZFAR);
+
+}
+
+DEMO_APP * DEMO_APP::GetInstance()
+{
+	static DEMO_APP instance;
+	return &instance;
 }
 
 //************************************************************
@@ -2036,14 +2099,19 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
     switch ( message )
     {
+	
+					break;
         case ( WM_DESTROY ): { PostQuitMessage( 0 ); }
         break;
 		case (WM_CREATE):
 			g_lParam = lParam;
 			break;
-		case (WM_SIZE) :
+		case (WM_SIZE) : 
 		{
-						   if (g_pSwapChain)
+			if(g_pSwapChain)
+				DEMO_APP::GetInstance()->ResizingOfWindows();
+			
+						   /*if (g_pSwapChain)
 						   {
 							   g_pd3dDeviceContext->OMGetRenderTargets(0, 0, 0);
 
@@ -2111,7 +2179,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 							   g_ScreenChanged = true;
 							   g_newProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(FIELDOFVIEW), (nWidth / nHeight), ZNEAR, ZFAR);
 
-						   }
+						   }*/
 		};
     }
     return DefWindowProc( hWnd, message, wParam, lParam );

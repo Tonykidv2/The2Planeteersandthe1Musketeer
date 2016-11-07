@@ -199,7 +199,7 @@ namespace LoadModel
 	}
 
 
-	bool* LoadingFBX(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	/*bool* LoadingFBX(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
 		std::vector<DirectX::XMFLOAT3> &pOutUVVector, std::vector<DirectX::XMFLOAT3> &pOutNormalsVector,
 		std::vector<unsigned int>& vertex_indices, std::vector<unsigned int>& uv_indices,
 		std::vector<unsigned int>& normal_indices)
@@ -329,6 +329,6 @@ namespace LoadModel
 				//}
 			}
 		}
-	}
+	}*/
 
 }
