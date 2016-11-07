@@ -26,6 +26,7 @@
 #include "SpriteBatch.h"
 #include "SimpleMath.h"
 #include "SpriteFont.h"
+#include<Audio.h>
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
 
@@ -145,10 +146,14 @@ class DEMO_APP
 	SEND_TO_VRAM_PIXEL VRAMPixelShader;
 	TRANSLATOR translating;
 	
-	
+	unique_ptr<AudioEngine> audio;
 	unique_ptr<SpriteBatch>spritebatch;
 	unique_ptr<SpriteFont> m_textFont;
+	unique_ptr<SoundEffect> sound;
 	ID3D11ShaderResourceView* m_text;
+	ID3D11ShaderResourceView* m_text2;
+	bool lightsToggle = false;
+	bool textureSwitch = true;
 
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
@@ -165,7 +170,6 @@ class DEMO_APP
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-
 	ID3D11Buffer* BindPoseVertex;
 	ID3D11Buffer* BindPoseIndex;
 	ID3D11ShaderResourceView* BindPoseTexture;
@@ -774,6 +778,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #endif
 
 #if !USINGOLDLIGHTCODE
+
 	//Directional Light
 	Lights[0].Position		= XMFLOAT4(0.0f, 0.0f, 0.0f, 1);
 	Lights[0].Direction		= XMFLOAT4(0.0f, -1.0f, 1.0f, 0.0f);
@@ -906,8 +911,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma region TEXT 
 	spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
 	m_textFont.reset(new SpriteFont(g_pd3dDevice, L"Arial.spritefont"));
-	CreateDDSTextureFromFile(g_pd3dDevice, L"fontDDS.dds", NULL, &m_text);
-
+	CreateDDSTextureFromFile(g_pd3dDevice, L"Green_Button.dds", NULL, &m_text);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"Red_Button.dds", NULL, &m_text2);
+	audio.reset(new AudioEngine(AudioEngine_Default));
+	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
 #pragma endregion
 
 	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
@@ -1293,84 +1300,82 @@ bool DEMO_APP::Run()
 	}
 #endif
 #if !USINGOLDLIGHTCODE
-	if (GetAsyncKeyState('X'))
-	{
-		Lights[1].Position.x += (float)TimeWizard.SmoothDelta();
-	}
-	if (GetAsyncKeyState('Z'))
-	{
-		Lights[1].Position.x -= (float)TimeWizard.SmoothDelta();
-	}
-	if (GetAsyncKeyState('C'))
-	{
-		Lights[1].Position.y += (float)TimeWizard.SmoothDelta();
-	}
-	if (GetAsyncKeyState('V'))
-	{
-		Lights[1].Position.y -= (float)TimeWizard.SmoothDelta();
-	}
-	if (GetAsyncKeyState('B'))
-	{
-		Lights[1].Position.z += (float)TimeWizard.SmoothDelta();
-	}
-	if (GetAsyncKeyState('N'))
-	{
-		Lights[1].Position.z -= (float)TimeWizard.SmoothDelta();
-	}
+	
+		if (GetAsyncKeyState('X'))
+		{
+			Lights[1].Position.x += (float)TimeWizard.SmoothDelta();
+		}
+		if (GetAsyncKeyState('Z'))
+		{
+			Lights[1].Position.x -= (float)TimeWizard.SmoothDelta();
+		}
+		if (GetAsyncKeyState('C'))
+		{
+			Lights[1].Position.y += (float)TimeWizard.SmoothDelta();
+		}
+		if (GetAsyncKeyState('V'))
+		{
+			Lights[1].Position.y -= (float)TimeWizard.SmoothDelta();
+		}
+		if (GetAsyncKeyState('B'))
+		{
+			Lights[1].Position.z += (float)TimeWizard.SmoothDelta();
+		}
+		if (GetAsyncKeyState('N'))
+		{
+			Lights[1].Position.z -= (float)TimeWizard.SmoothDelta();
+		}
 
-	if (GetAsyncKeyState(VK_SPACE))
-	{
-		Lights[1].Position.x = -1.0f;
-		Lights[1].Position.y = 1.0f;
-		Lights[1].Position.z = 0;
-	}
+		if (GetAsyncKeyState(VK_SPACE))
+		{
+			Lights[1].Position.x = -1.0f;
+			Lights[1].Position.y = 1.0f;
+			Lights[1].Position.z = 0;
+		}
 
-	if (GetAsyncKeyState(VK_NUMPAD8))
-	{
-		Lights[0].Direction.z -= (float)TimeWizard.SmoothDelta();
-		if (Lights[0].Direction.z <= -1.0f)
-			Lights[0].Direction.z = -1.0f;
-	}
-	if (GetAsyncKeyState(VK_NUMPAD2))
-	{
-		Lights[0].Direction.z += (float)TimeWizard.SmoothDelta();
-		if (Lights[0].Direction.z >= 1.0f)
-			Lights[0].Direction.z = 1.0f;
-	}
-	if (GetAsyncKeyState(VK_NUMPAD6))
-	{
-		Lights[0].Direction.x -= (float)TimeWizard.SmoothDelta();
-		if (Lights[0].Direction.x <= -1.0f)
-			Lights[0].Direction.x = -1.0f;
-	}
-	if (GetAsyncKeyState(VK_NUMPAD4))
-	{
-		Lights[0].Direction.x += (float)TimeWizard.SmoothDelta();
-		if (Lights[0].Direction.x >= 1.0f)
-			Lights[0].Direction.x = 1.0f;
-	}
+		if (GetAsyncKeyState(VK_NUMPAD8))
+		{
+			Lights[0].Direction.z -= (float)TimeWizard.SmoothDelta();
+			if (Lights[0].Direction.z <= -1.0f)
+				Lights[0].Direction.z = -1.0f;
+		}
+		if (GetAsyncKeyState(VK_NUMPAD2))
+		{
+			Lights[0].Direction.z += (float)TimeWizard.SmoothDelta();
+			if (Lights[0].Direction.z >= 1.0f)
+				Lights[0].Direction.z = 1.0f;
+		}
+		if (GetAsyncKeyState(VK_NUMPAD6))
+		{
+			Lights[0].Direction.x -= (float)TimeWizard.SmoothDelta();
+			if (Lights[0].Direction.x <= -1.0f)
+				Lights[0].Direction.x = -1.0f;
+		}
+		if (GetAsyncKeyState(VK_NUMPAD4))
+		{
+			Lights[0].Direction.x += (float)TimeWizard.SmoothDelta();
+			if (Lights[0].Direction.x >= 1.0f)
+				Lights[0].Direction.x = 1.0f;
+		}
 
-	if (GetAsyncKeyState('1') & 0x1)
-	{
-		if (Lights[0].Radius.x == 0)
-			Lights[0].Radius.x = 1;
-		else
-			Lights[0].Radius.x = 0;
-	}
-	if (GetAsyncKeyState('2') & 0x1)
-	{
-		if (Lights[1].Radius.x == 0)
-			Lights[1].Radius.x = 1;
-		else
-			Lights[1].Radius.x = 0;
-	}
-	if (GetAsyncKeyState('3') & 0x1)
-	{
-		if (Lights[2].Radius.x == 0)
-			Lights[2].Radius.x = 1;
-		else
-			Lights[2].Radius.x = 0;
-	}
+	
+		 if (lightsToggle)
+		 {
+			 if (Lights[0].Radius.x == 0)
+				 Lights[0].Radius.x = 1;
+			 else
+				 Lights[0].Radius.x = 0;
+			 if (Lights[1].Radius.x == 0)
+				 Lights[1].Radius.x = 1;
+			 else
+				 Lights[1].Radius.x = 0;
+			 if (Lights[2].Radius.x == 0)
+				 Lights[2].Radius.x = 1;
+			 else
+				 Lights[2].Radius.x = 0;
+			 lightsToggle = false;
+		 }
+		
 #endif
 #pragma endregion 
 
@@ -1494,11 +1499,13 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
 
 	//Sending NEW Light Info to videoCard
-	D3D11_MAPPED_SUBRESOURCE LightSauce;
-	g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
-	memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
-	g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
-
+	//if (lightsToggle)
+	//{
+		D3D11_MAPPED_SUBRESOURCE LightSauce;
+		g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
+		memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
+		g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
+	//}
 	//Sending instance Data to the videoCard
 	D3D11_MAPPED_SUBRESOURCE InstanceSource;
 	g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
@@ -1853,9 +1860,38 @@ bool DEMO_APP::Run()
 
 #pragma region Drawing Text
 
+	POINT CUR;
+	GetCursorPos(&CUR);
+	ScreenToClient(window, &CUR);
+	//RECT* dest;  //Rectangle(1, 2, 336, 127);
+	ID3D11Texture2D* x;
+	m_text->GetResource((ID3D11Resource**)&x);
+	D3D11_TEXTURE2D_DESC desc;
+	x->GetDesc(&desc);
+	
+	SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width/2, desc.Height/2);
+	
 	spritebatch->Begin();
+	spritebatch->SetViewport(g_DirectView);
+	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON)&0x1))
+	{
+		sound->Play();
+			textureSwitch = !textureSwitch;
+			lightsToggle = true;
+	}
+	if (!textureSwitch)
+	{
+		
+		spritebatch->Draw(m_text2, XMFLOAT2(100, 100), NULL, DirectX::Colors::Red, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
+	m_textFont->DrawString(spritebatch.get(), L"OFF", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
 
-	//spritebatch->Draw(m_text,XMFLOAT2(100,100));
+	}
+	else if(textureSwitch)
+	{
+		spritebatch->Draw(m_text, XMFLOAT2(100, 100), NULL, DirectX::Colors::Green, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
+	m_textFont->DrawString(spritebatch.get(), L"ON", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
+
+	}
 	
 	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1),DirectX::Colors::DeepPink);
 	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
