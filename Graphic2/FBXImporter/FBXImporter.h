@@ -25,3 +25,4 @@
 extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
 	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
 	std::vector<DirectX::XMFLOAT3>& out_Tangets);
+

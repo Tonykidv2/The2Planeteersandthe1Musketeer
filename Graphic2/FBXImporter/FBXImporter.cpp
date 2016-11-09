@@ -131,3 +131,97 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 	g_pFbxManager->Destroy();
 	return true;
 }
+
+FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex)
+{
+	FbxAMatrix localposeMatrix;
+	FbxMatrix localMatrix = pPose->GetMatrix(pNodeIndex);
+	memcpy((double*)localposeMatrix, (double*)localMatrix, sizeof(localMatrix.mData));
+	return localposeMatrix;
+}
+
+FbxAMatrix GetGeometry(FbxNode* pNode)
+{
+	const FbxVector4 localTransform = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
+	const FbxVector4 localRotation = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
+	const FbxVector4 localScaling = pNode->GetGeometricScaling(FbxNode::eSourcePivot);
+	return FbxAMatrix(localTransform, localRotation, localScaling);
+}
+
+FbxAMatrix GetGlobalPosition(FbxNode* pNode, const FbxTime& pTime, FbxPose* pPose = NULL, FbxAMatrix* parentGlobalPosition = NULL)
+{
+	FbxAMatrix globalPosition;
+	bool positionFound = false;
+
+	if (pPose)
+	{
+		int nodeIndex = pPose->Find(pNode);
+		if (nodeIndex > -1)
+		{
+			if (pPose->IsBindPose() || !pPose->IsLocalMatrix(nodeIndex))
+			{
+				globalPosition = GetPoseMatrix(pPose, nodeIndex);
+			}
+			else
+			{
+				FbxAMatrix m_parentGlobalPosition;
+				if (parentGlobalPosition)
+				{
+					m_parentGlobalPosition = *parentGlobalPosition;
+				}
+				else
+				{
+					if (pNode->GetParent())
+					{
+						m_parentGlobalPosition = GetGlobalPosition(pNode->GetParent(), pTime, pPose);
+					}
+				}
+				FbxAMatrix localPosition = GetPoseMatrix(pPose, nodeIndex);
+				globalPosition = m_parentGlobalPosition * localPosition;
+			}
+			positionFound = true;
+		}
+	}
+
+	if (!positionFound)
+	{
+		globalPosition = pNode->EvaluateGlobalTransform(pTime);
+	}
+	return globalPosition;
+}
+
+
+
+void ComputeCLusterDeformation(FbxAMatrix& globalPosition, FbxMesh* pMesh, FbxCluster* pCluster, FbxAMatrix& pVertexTransformMatrix, FbxTime pTime, FbxPose* pPose)
+{
+	FbxCluster::ELinkMode clusterMode = pCluster->GetLinkMode();
+
+	FbxAMatrix lReferenceGlobalInitPosition;
+	FbxAMatrix lReferenceGlobalCurrentPosition;
+	
+	FbxAMatrix lClusterGlobalInitPosition;
+	FbxAMatrix lClusterGlobalCurrentPosition;
+
+	FbxAMatrix lReferenceGeometry;
+	FbxAMatrix lClusterGeometry;
+
+	FbxAMatrix lClusterRelativeInitPosition;
+	FbxAMatrix lClusterRelativeCurrentPositionInverse;
+
+	if (!clusterMode == FbxCluster::eAdditive && !pCluster->GetAssociateModel())
+	{
+		pCluster->GetTransformMatrix(lReferenceGlobalInitPosition);
+		lReferenceGlobalCurrentPosition = globalPosition;
+		lReferenceGeometry = GetGeometry(pMesh->GetNode());
+		lReferenceGlobalInitPosition *= lReferenceGeometry;
+
+		pCluster->GetTransformLinkMatrix(lClusterGlobalInitPosition);
+		lClusterGlobalCurrentPosition = GetGlobalPosition(pCluster->GetLink(), pTime, pPose);
+
+		lClusterRelativeInitPosition = lClusterGlobalInitPosition.Inverse() * lReferenceGlobalInitPosition;
+
+		lClusterRelativeCurrentPositionInverse = lReferenceGlobalCurrentPosition.Inverse() * lClusterGlobalCurrentPosition;
+
+		pVertexTransformMatrix = lClusterRelativeCurrentPositionInverse * lClusterRelativeInitPosition;
+	}
+}
