@@ -22,6 +22,8 @@
 //    return;
 //}
 
+#include <fbxsdk.h>
+
 extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4>& pOutVertexVector,
 	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
 	std::vector<DirectX::XMFLOAT3>& out_Tangets)
@@ -50,13 +52,13 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 	if (!Successs)
 		return false;
 
-
-
 	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
 
 	if (pFbxRootNode)
 	{
-		for (int i = 0; i < pFbxRootNode->GetChildCount(); i++)
+		int ChildCount = pFbxRootNode->GetChildCount();
+
+		for (int i = 0; i < ChildCount; i++)
 		{
 			FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
 			if (pFbxChildNode->GetNodeAttribute() == NULL)
@@ -108,7 +110,7 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 					pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
 					DirectX::XMFLOAT3 UV;
 					UV.x = (float)pUVs.mData[0];
-					UV.y = 1.0f - (float)pUVs.mData[1];
+					UV.y = 1.0 - (float)pUVs.mData[1];
 					out_UVs.push_back(UV);
 
 					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
