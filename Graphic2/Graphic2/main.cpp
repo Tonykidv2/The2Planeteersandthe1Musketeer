@@ -27,6 +27,7 @@
 #include "SimpleMath.h"
 #include "SpriteFont.h"
 #include<Audio.h>
+
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
 
@@ -154,7 +155,9 @@ class DEMO_APP
 	ID3D11ShaderResourceView* m_text2;
 	bool lightsToggle = false;
 	bool textureSwitch = true;
-
+	bool makeIt1 = false;
+	bool makeIt2 = false;
+	bool makeIt3 = false;
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
 #endif
@@ -478,11 +481,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	vert_indices.clear();
 	uvs_indices.clear();
 	norm_indices.clear();
-
-
+	
+	/*StoreFBXDLLinBin("Box_BindPose.fbx", "Box_BindPose.bin");
+	StoreFBXDLLinBin("SwordFBX.fbx", "SwordFBX.bin");
+	StoreFBXDLLinBin("Teddy_Attack1.fbx", "Teddy_Attack1.bin");*/
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount);
+	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.bin", &SwordIndexCount);
+	
 #pragma endregion
 
 #pragma region Creating Deadpool
@@ -926,9 +932,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
 #pragma endregion
 
-	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
+
+	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.bin", &BindPoseIndexCount);
 	thread4.join();
-	thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.fbx", &TeddyPoseIndexCount);
+	thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
 	thread5.detach();
 	TimeWizard.Restart();
 
@@ -1128,7 +1135,9 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//verts.clear();
 	//norms.clear();
 	//uvs.clear();
-	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent,false);
+	LoadModel::LoadFBXinBin(Path, verts, uvs, norms, tangent);
+		//LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
+	
 
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];

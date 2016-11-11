@@ -23,7 +23,7 @@
 ////}
 
 
-extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
+extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path,const char* newFile)
 {
 
 	int check=0;
@@ -39,16 +39,8 @@ extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
 
 	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
 	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
-	std::string realFile = path;
-	realFile.pop_back();
-	realFile.pop_back();
-	realFile.pop_back();
-	realFile.pop_back();
-	realFile.push_back('.');
-	realFile.push_back('f');
-	realFile.push_back('b');
-	realFile.push_back('x');
-	bool Successs = pImporter->Initialize(realFile.c_str(), -1, g_pFbxManager->GetIOSettings());
+	
+	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
 
 	if (!Successs)
 		return false;
@@ -116,9 +108,9 @@ extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
 					DirectX::XMFLOAT3 UV;
 					UV.x = (float)pUVs.mData[0];
 					UV.y = 1.0f - (float)pUVs.mData[1];
+				
 					
-					
-					WriteFBXDLLtoBinary(path, vertex, UV, Normal);
+					WriteFBXDLLtoBinary(newFile, vertex, UV, Normal);
 					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
 					//DirectX::XMFLOAT3 tangent;
 					//tangent.x = (float)pTangent.mData[0];
@@ -139,6 +131,118 @@ extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
 	g_pFbxManager->Destroy();
 	return true;
 }
+
+extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+	std::vector<DirectX::XMFLOAT3>& out_Tangets)
+{
+
+	int check = 0;
+	FbxManager* g_pFbxManager = nullptr;
+
+	if (g_pFbxManager == nullptr)
+	{
+		g_pFbxManager = FbxManager::Create();
+
+		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+		g_pFbxManager->SetIOSettings(pIOsettings);
+	}
+
+	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
+	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
+	
+	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+
+	if (!Successs)
+		return false;
+
+	Successs = pImporter->Import(pFbxScene);
+	if (!Successs)
+		return false;
+
+
+
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+
+	if (rootNode)
+	{
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+		{
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
+			if (pFbxChildNode->GetNodeAttribute() == NULL)
+				continue;
+
+			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+			if (AttributeType != FbxNodeAttribute::eMesh)
+				continue;
+
+			fbxsdk::FbxMesh* pMesh = (fbxsdk::FbxMesh*)pFbxChildNode->GetNodeAttribute();
+
+			FbxVector4* pVertices = pMesh->GetControlPoints();
+			FbxVector4 pTangent;
+			FbxVector4 pNormals;
+			FbxVector2 pUVs;
+
+			const fbxsdk::FbxGeometryElementNormal * lNormalElement = pMesh->GetElementNormal(0);
+			const fbxsdk::FbxGeometryElementUV * lUVElement = pMesh->GetElementUV(0);
+			const fbxsdk::FbxGeometryElementBinormal* TangentElement = pMesh->GetElementBinormal(0);
+
+			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
+			{
+
+				int iNumVertices = pMesh->GetPolygonSize(j);
+				assert(iNumVertices == 3);
+
+				for (int k = 0; k < iNumVertices; k++)
+				{
+					int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
+
+					DirectX::XMFLOAT4 vertex;
+					vertex.x = -(float)pVertices[iControlPointIndex].mData[0];
+					vertex.y = (float)pVertices[iControlPointIndex].mData[1];
+					vertex.z = (float)pVertices[iControlPointIndex].mData[2];
+					vertex.w = 1;
+					pOutVertexVector.push_back(vertex);
+
+					pMesh->GetPolygonVertexNormal(j, k, pNormals);
+					DirectX::XMFLOAT3 Normal;
+
+					Normal.x = -(float)pNormals.mData[0];
+					Normal.y = (float)pNormals.mData[1];
+					Normal.z = (float)pNormals.mData[2];
+
+					out_Normals.push_back(Normal);
+
+					int UvIndex = pMesh->GetTextureUVIndex(j, k);
+					pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
+					DirectX::XMFLOAT3 UV;
+					UV.x = (float)pUVs.mData[0];
+					UV.y = 1.0f - (float)pUVs.mData[1];
+					out_UVs.push_back(UV);
+
+				
+					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
+					//DirectX::XMFLOAT3 tangent;
+					//tangent.x = (float)pTangent.mData[0];
+					//tangent.y = (float)pTangent.mData[1];
+					//tangent.z = (float)pTangent.mData[2];
+					//out_Tangets.push_back(tangent);
+				}
+
+
+			}
+		}
+
+	}
+
+	rootNode->Destroy();
+	pImporter->Destroy();
+	pFbxScene->Destroy();
+	g_pFbxManager->Destroy();
+	return true;
+}
+
 extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts, DirectX::XMFLOAT3 uv, DirectX::XMFLOAT3 norm)
 {
 	
@@ -177,6 +281,7 @@ extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, Dir
 	
 	
 }
+
 extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
 	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
 	std::vector<DirectX::XMFLOAT3>& out_Tangets)
