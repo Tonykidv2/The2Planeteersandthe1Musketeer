@@ -195,7 +195,17 @@ namespace LoadModel
 		//	}
 		//}
 		//return true;
+		
 		return LoadFBXDLL(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);
 	}
-
+	void StoreFBXinBin(const char * path,const char* newFile)
+	{
+		StoreFBXDLLinBin(path,newFile);
+	}
+	void LoadFBXinBin(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+		std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+		std::vector<DirectX::XMFLOAT3>& out_Tangets)
+	{
+		ReadFBXDLLfromBinary(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);
+	}
 }

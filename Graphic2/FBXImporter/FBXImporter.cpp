@@ -8,6 +8,23 @@
 #include "Vertex.h"
 #include <unordered_map>
 
+// This is an example of an exported variable
+//FBXIMPORTER_API int nFBXImporter=0;
+
+// This is an example of an exported function.
+//FBXIMPORTER_API int fnFBXImporter(void)
+//{
+//    return 42;
+//}
+
+// This is the constructor of a class that has been exported.
+// see FBXImporter.h for the class definition
+//CFBXImporter::CFBXImporter()
+//{
+//    return;
+////}
+
+
 class FBXExporter
 {
 private:
@@ -37,32 +54,10 @@ private:
 
 
 
-
-// This is an example of an exported variable
-//FBXIMPORTER_API int nFBXImporter=0;
-
-// This is an example of an exported function.
-//FBXIMPORTER_API int fnFBXImporter(void)
-//{
-//    return 42;
-//}
-
-// This is the constructor of a class that has been exported.
-// see FBXImporter.h for the class definition
-//CFBXImporter::CFBXImporter()
-//{
-//    return;
-//}
-
-#include <fbxsdk.h>
-
-
-extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4>& pOutVertexVector,
-	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
-	std::vector<DirectX::XMFLOAT3>& out_Tangets)
+extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path,const char* newFile)
 {
 
-
+	int check=0;
 	FbxManager* g_pFbxManager = nullptr;
 
 	if (g_pFbxManager == nullptr)
@@ -75,7 +70,7 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 
 	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
 	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
-
+	
 	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
 
 	if (!Successs)
@@ -85,15 +80,126 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 	if (!Successs)
 		return false;
 
-	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
 
-	if (pFbxRootNode)
+
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+	
+	if (rootNode)
 	{
-		int ChildCount = pFbxRootNode->GetChildCount();
-
-		for (int i = 0; i < ChildCount; i++)
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
 		{
-			FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
+			if (pFbxChildNode->GetNodeAttribute() == NULL)
+				continue;
+
+			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+			if (AttributeType != FbxNodeAttribute::eMesh)
+				continue;
+
+			fbxsdk::FbxMesh* pMesh = (fbxsdk::FbxMesh*)pFbxChildNode->GetNodeAttribute();
+
+			FbxVector4* pVertices = pMesh->GetControlPoints();
+			FbxVector4 pTangent;
+			FbxVector4 pNormals;
+			FbxVector2 pUVs;
+
+			const fbxsdk::FbxGeometryElementNormal * lNormalElement = pMesh->GetElementNormal(0);
+			const fbxsdk::FbxGeometryElementUV * lUVElement = pMesh->GetElementUV(0);
+			const fbxsdk::FbxGeometryElementBinormal* TangentElement = pMesh->GetElementBinormal(0);
+
+			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
+			{
+
+				int iNumVertices = pMesh->GetPolygonSize(j);
+				assert(iNumVertices == 3);
+
+				for (int k = 0; k < iNumVertices; k++)
+				{
+					int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
+
+					DirectX::XMFLOAT4 vertex;
+					vertex.x = -(float)pVertices[iControlPointIndex].mData[0];
+					vertex.y = (float)pVertices[iControlPointIndex].mData[1];
+					vertex.z = (float)pVertices[iControlPointIndex].mData[2];
+					vertex.w = 1;
+					
+					
+					pMesh->GetPolygonVertexNormal(j, k, pNormals);
+					DirectX::XMFLOAT3 Normal;
+
+					Normal.x = -(float)pNormals.mData[0];
+					Normal.y = (float)pNormals.mData[1];
+					Normal.z = (float)pNormals.mData[2];
+					
+					
+
+					int UvIndex = pMesh->GetTextureUVIndex(j, k);
+					pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
+					DirectX::XMFLOAT3 UV;
+					UV.x = (float)pUVs.mData[0];
+					UV.y = 1.0f - (float)pUVs.mData[1];
+				
+					
+					WriteFBXDLLtoBinary(newFile, vertex, UV, Normal);
+					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
+					//DirectX::XMFLOAT3 tangent;
+					//tangent.x = (float)pTangent.mData[0];
+					//tangent.y = (float)pTangent.mData[1];
+					//tangent.z = (float)pTangent.mData[2];
+					//out_Tangets.push_back(tangent);
+				}
+
+
+			}
+		}
+			
+	}
+	
+	rootNode->Destroy();
+	pImporter->Destroy();
+	pFbxScene->Destroy();
+	g_pFbxManager->Destroy();
+	return true;
+}
+
+extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+	std::vector<DirectX::XMFLOAT3>& out_Tangets)
+{
+
+	int check = 0;
+	FbxManager* g_pFbxManager = nullptr;
+
+	if (g_pFbxManager == nullptr)
+	{
+		g_pFbxManager = FbxManager::Create();
+
+		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+		g_pFbxManager->SetIOSettings(pIOsettings);
+	}
+
+	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
+	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
+	
+	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+
+	if (!Successs)
+		return false;
+
+	Successs = pImporter->Import(pFbxScene);
+	if (!Successs)
+		return false;
+
+
+
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+
+	if (rootNode)
+	{
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+		{
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
 			if (pFbxChildNode->GetNodeAttribute() == NULL)
 				continue;
 
@@ -136,16 +242,17 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 					Normal.x = -(float)pNormals.mData[0];
 					Normal.y = (float)pNormals.mData[1];
 					Normal.z = (float)pNormals.mData[2];
-					out_Normals.push_back(Normal);
 
+					out_Normals.push_back(Normal);
 
 					int UvIndex = pMesh->GetTextureUVIndex(j, k);
 					pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
 					DirectX::XMFLOAT3 UV;
 					UV.x = (float)pUVs.mData[0];
-					UV.y = 1.0 - (float)pUVs.mData[1];
+					UV.y = 1.0f - (float)pUVs.mData[1];
 					out_UVs.push_back(UV);
 
+				
 					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
 					//DirectX::XMFLOAT3 tangent;
 					//tangent.x = (float)pTangent.mData[0];
@@ -157,114 +264,86 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 
 			}
 		}
-			
+
 	}
 
-	pFbxRootNode->Destroy();
+	rootNode->Destroy();
 	pImporter->Destroy();
 	pFbxScene->Destroy();
 	g_pFbxManager->Destroy();
 	return true;
 }
-/*
-FbxAMatrix GetPoseMatrix(FbxPose* pPose, int pNodeIndex)
+
+extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts, DirectX::XMFLOAT3 uv, DirectX::XMFLOAT3 norm)
 {
-	FbxAMatrix localposeMatrix;
-	FbxMatrix localMatrix = pPose->GetMatrix(pNodeIndex);
-	memcpy((double*)localposeMatrix, (double*)localMatrix, sizeof(localMatrix.mData));
-	return localposeMatrix;
+	
+	//char end[4] = "end";
+	std::fstream file(path, std::ios::out | std::ios::binary | std::ios::app);
+	
+		//verts
+		//file.write(id_vert, 5);
+		file.write((char*)&verts.x, sizeof(float));
+		
+		file.write((char*)&verts.y, sizeof(float));
+
+		file.write((char*)&verts.z, sizeof(float));
+	
+		file.write((char*)&verts.w, sizeof(float));
+	
+		//uvs
+		//file.write(id_uv, 3);
+		file.write((char*)&uv.x, sizeof(float));
+		
+		file.write((char*)&uv.y, sizeof(float));
+	
+		file.write((char*)&uv.z, sizeof(float));
+		
+
+		//normals
+		//file.write(id_norm, 5);
+		file.write((char*)&norm.x, sizeof(float));
+	
+		file.write((char*)&norm.y, sizeof(float));
+	
+		file.write((char*)&norm.z, sizeof(float));
+		
+
+		file.close();
+	
+	
 }
 
-FbxAMatrix GetGeometry(FbxNode* pNode)
+extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+	std::vector<DirectX::XMFLOAT3>& out_Tangets)
 {
-	const FbxVector4 localTransform = pNode->GetGeometricTranslation(FbxNode::eSourcePivot);
-	const FbxVector4 localRotation = pNode->GetGeometricRotation(FbxNode::eSourcePivot);
-	const FbxVector4 localScaling = pNode->GetGeometricScaling(FbxNode::eSourcePivot);
-	return FbxAMatrix(localTransform, localRotation, localScaling);
-}
-
-FbxAMatrix GetGlobalPosition(FbxNode* pNode, const FbxTime& pTime, FbxPose* pPose = NULL, FbxAMatrix* parentGlobalPosition = NULL)
-{
-	FbxAMatrix globalPosition;
-	bool positionFound = false;
-
-	if (pPose)
+	DirectX::XMFLOAT4 vert;
+	DirectX::XMFLOAT3 uv;
+	DirectX::XMFLOAT3 norm;
+	std::ifstream file(path, std::ios::in | std::ios::binary);
+	if (file.is_open())
 	{
-		int nodeIndex = pPose->Find(pNode);
-		if (nodeIndex > -1)
+		while (!file.eof())
 		{
-			if (pPose->IsBindPose() || !pPose->IsLocalMatrix(nodeIndex))
-			{
-				globalPosition = GetPoseMatrix(pPose, nodeIndex);
-			}
-			else
-			{
-				FbxAMatrix m_parentGlobalPosition;
-				if (parentGlobalPosition)
-				{
-					m_parentGlobalPosition = *parentGlobalPosition;
-				}
-				else
-				{
-					if (pNode->GetParent())
-					{
-						m_parentGlobalPosition = GetGlobalPosition(pNode->GetParent(), pTime, pPose);
-					}
-				}
-				FbxAMatrix localPosition = GetPoseMatrix(pPose, nodeIndex);
-				globalPosition = m_parentGlobalPosition * localPosition;
-			}
-			positionFound = true;
+			file.read((char*)&vert.x, sizeof(float));
+			file.read((char*)&vert.y, sizeof(float));
+			file.read((char*)&vert.z, sizeof(float));
+			file.read((char*)&vert.w, sizeof(float));
+			pOutVertexVector.push_back(vert);
+			file.read((char*)&uv.x, sizeof(float));
+			file.read((char*)&uv.y, sizeof(float));
+			file.read((char*)&uv.z, sizeof(float));
+			out_UVs.push_back(uv);
+			file.read((char*)&norm.x, sizeof(float));
+			file.read((char*)&norm.y, sizeof(float));
+			file.read((char*)&norm.z, sizeof(float));
+			out_Normals.push_back(norm);
+
 		}
 	}
+	file.close();
 
-	if (!positionFound)
-	{
-		globalPosition = pNode->EvaluateGlobalTransform(pTime);
-	}
-	return globalPosition;
 }
-
-
-		
-void ComputeClusterDeformation(FbxAMatrix& globalPosition, FbxMesh* pMesh, FbxCluster* pCluster, FbxAMatrix& pVertexTransformMatrix, FbxTime pTime, FbxPose* pPose)
-{
-	//lClusterRelativeInitPosition -> inverse bind pose
-	//lClusterRelativeCurrentPositionInverse -> bone offset
-	//Relative -> to mesh,  cluster-> bone,
-
-	FbxCluster::ELinkMode clusterMode = pCluster->GetLinkMode();
-
-	FbxAMatrix lRefGlobalInitPosition;
-	FbxAMatrix lRefGlobalCurrentPosition;
-	
-	FbxAMatrix lClusterGlobalInitPosition;
-	FbxAMatrix lClusterGlobalCurrentPosition;
-
-	FbxAMatrix lRefGeometry;
-	FbxAMatrix lClusterGeometry;
-
-	FbxAMatrix lClusterRelativeInitPosition;
-	FbxAMatrix lClusterRelativeCurrentPositionInverse;
-
-	if (!clusterMode == FbxCluster::eAdditive && !pCluster->GetAssociateModel())
-	{
-		pCluster->GetTransformMatrix(lRefGlobalInitPosition);
-		lRefGlobalCurrentPosition = globalPosition;
-		lRefGeometry = GetGeometry(pMesh->GetNode());
-		lRefGlobalInitPosition *= lRefGeometry;
-
-		pCluster->GetTransformLinkMatrix(lClusterGlobalInitPosition);
-		lClusterGlobalCurrentPosition = GetGlobalPosition(pCluster->GetLink(), pTime, pPose);
-
-		lClusterRelativeInitPosition = lClusterGlobalInitPosition.Inverse() * lRefGlobalInitPosition;
-
-		lClusterRelativeCurrentPositionInverse = lRefGlobalCurrentPosition.Inverse() * lClusterGlobalCurrentPosition;
-
-		pVertexTransformMatrix =  lClusterRelativeInitPosition * lClusterRelativeCurrentPositionInverse;
-	}
-}
-*/
 
 
 void FBXExporter::ProcessSkeletonHeirarchy(FbxNode* m_rootNode)
@@ -272,7 +351,7 @@ void FBXExporter::ProcessSkeletonHeirarchy(FbxNode* m_rootNode)
 	for (int childIndex = 0; childIndex < m_rootNode->GetChildCount(); ++childIndex)
 	{
 		FbxNode* currNode = m_rootNode->GetChild(childIndex);
-		
+
 	}
 }
 
@@ -405,7 +484,6 @@ unsigned int FBXExporter::FindJointIndexUsingName(const std::string& m_JointName
 	throw std::exception("Skeleton information in FBX file is corrupted.");
 }
 
-
 void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVIndex, int m_UVLayer, DirectX::XMFLOAT2& outUV)
 {
 	if (m_UVLayer >= 2 || m_Mesh->GetElementUVCount() <= m_UVLayer)
@@ -417,7 +495,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 
 	switch (vertexUV->GetMappingMode())
 	{
-	case FbxGeometryElement:: eByControlPoint:
+	case FbxGeometryElement::eByControlPoint:
 		switch (vertexUV->GetReferenceMode())
 		{
 		case FbxGeometryElement::eDirect:
@@ -425,7 +503,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
 			outUV.y = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
 		}
-		break;
+			break;
 
 		case FbxGeometryElement::eIndexToDirect:
 		{
@@ -433,7 +511,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
 			outUV.y = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
 		}
-		break;
+			break;
 
 		default:
 			throw std::exception("Invalid Reference");
@@ -449,7 +527,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
 			outUV.y = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
 		}
-		break;
+			break;
 
 		default:
 			throw std::exception("Invalid Reference");
@@ -468,123 +546,123 @@ void FBXExporter::ReadNormal(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_vertex
 	FbxGeometryElementNormal* vertexNormal = m_Mesh->GetElementNormal(0);
 	switch (vertexNormal->GetMappingMode())
 	{
-		case FbxGeometryElementNormal::eByControlPoint:
-			switch (vertexNormal->GetReferenceMode())
-			{
-			case FbxGeometryElement::eDirect:
-			{
-				m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
-				m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
-				m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[2]);
-			}
+	case FbxGeometryElementNormal::eByControlPoint:
+		switch (vertexNormal->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
+			m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
+			m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_CtrlPointIndex).mData[2]);
+		}
 			break;
 
-			case FbxGeometryElement::eIndexToDirect:
-			{
-				int index = vertexNormal->GetIndexArray().GetAt(m_CtrlPointIndex);
-				m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[0]);
-				m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[1]);
-				m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[2]);
-			}
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexNormal->GetIndexArray().GetAt(m_CtrlPointIndex);
+			m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[0]);
+			m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[1]);
+			m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[2]);
+		}
 			break;
 
-			default:
-				throw std::exception("Invalid Reference");
-			}
+		default:
+			throw std::exception("Invalid Reference");
+		}
 		break;
 
-		case FbxGeometryElement::eByPolygonVertex:
-			switch (vertexNormal->GetReferenceMode())
-			{
-			case FbxGeometryElement::eDirect:
-			{
-				m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[0]);
-				m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[1]);
-				m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[2]);
-			}
+	case FbxGeometryElement::eByPolygonVertex:
+		switch (vertexNormal->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[0]);
+			m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[1]);
+			m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(m_vertexCounter).mData[2]);
+		}
 			break;
 
-			case FbxGeometryElement::eIndexToDirect:
-			{
-				int index = vertexNormal->GetIndexArray().GetAt(m_vertexCounter);
-				m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[0]);
-				m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[1]);
-				m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[2]);
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexNormal->GetIndexArray().GetAt(m_vertexCounter);
+			m_outNormal.x = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[0]);
+			m_outNormal.y = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[1]);
+			m_outNormal.z = static_cast<float>(vertexNormal->GetDirectArray().GetAt(index).mData[2]);
 
-			}
+		}
 			break;
 
-			default:
-				throw std::exception("Invalid Reference");
-			}
-			break;
+		default:
+			throw std::exception("Invalid Reference");
+		}
+		break;
 	}
 }
 
 void FBXExporter::ReadTangent(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_VertexCounter, DirectX::XMFLOAT3& m_outTangent)
 {
 	if (m_Mesh->GetElementTangentCount() < 1)
-	 	{
-	 		throw std::exception("Invalid Tangent Number");
-	 	}
-	
+	{
+		throw std::exception("Invalid Tangent Number");
+	}
 
-	 	FbxGeometryElementTangent* vertexTangent = m_Mesh->GetElementTangent(0);
+
+	FbxGeometryElementTangent* vertexTangent = m_Mesh->GetElementTangent(0);
 	switch (vertexTangent->GetMappingMode())
-	 	{
-	 	case FbxGeometryElement::eByControlPoint:
-			switch (vertexTangent->GetReferenceMode())
-			{
-				case FbxGeometryElement::eDirect:
-				{
-			 		m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
-			 		m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
-			 		m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[2]);
-			 	}
-				break;
-			
-
-			case FbxGeometryElement::eIndexToDirect:
-			{
-			 	int index = vertexTangent->GetIndexArray().GetAt(m_CtrlPointIndex);
-			 	m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[0]);
-			 	m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[1]);
-			 	m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[2]);
-			}
+	{
+	case FbxGeometryElement::eByControlPoint:
+		switch (vertexTangent->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
+			m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
+			m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_CtrlPointIndex).mData[2]);
+		}
 			break;
-			
-			default:
-				throw std::exception("Invalid Reference");
-			}
+
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexTangent->GetIndexArray().GetAt(m_CtrlPointIndex);
+			m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[0]);
+			m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[1]);
+			m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[2]);
+		}
 			break;
-			
 
-		case FbxGeometryElement::eByPolygonVertex:
-			 switch (vertexTangent->GetReferenceMode())
-			 {
-				 case FbxGeometryElement::eDirect:
-				  {
-						m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[0]);
-						m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[1]);
-						m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[2]);
-				  }
-				  break;
-					
+		default:
+			throw std::exception("Invalid Reference");
+		}
+		break;
 
-				 case FbxGeometryElement::eIndexToDirect:
-				 {
-					    int index = vertexTangent->GetIndexArray().GetAt(m_VertexCounter);
-					    m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[0]);
-					    m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[1]);
-					    m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[2]);
-				  }
-				  break;
-				  default:
-					throw std::exception("Invalid Reference");
-		       }
-			 break;
-			 	}
- }
+
+	case FbxGeometryElement::eByPolygonVertex:
+		switch (vertexTangent->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[0]);
+			m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[1]);
+			m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(m_VertexCounter).mData[2]);
+		}
+			break;
+
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexTangent->GetIndexArray().GetAt(m_VertexCounter);
+			m_outTangent.x = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[0]);
+			m_outTangent.y = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[1]);
+			m_outTangent.z = static_cast<float>(vertexTangent->GetDirectArray().GetAt(index).mData[2]);
+		}
+			break;
+		default:
+			throw std::exception("Invalid Reference");
+		}
+		break;
+	}
+}
 
 void FBXExporter::ProcessMesh(FbxNode* m_Node)
 {
@@ -633,7 +711,7 @@ void FBXExporter::ProcessMesh(FbxNode* m_Node)
 			m_Vertices.push_back(temp);
 			m_Triangles.back().m_Indices.push_back(vertexCounter);
 			vertexCounter++;
-				
+
 		}
 	}
 
@@ -648,19 +726,19 @@ void FBXExporter::ProcessMesh(FbxNode* m_Node)
 void FBXExporter::ProcessGeometry(FbxNode *m_Node)
 {
 	if (m_Node->GetNodeAttribute())
-	 	{
-	 		switch (m_Node->GetNodeAttribute()->GetAttributeType())
+	{
+		switch (m_Node->GetNodeAttribute()->GetAttributeType())
+		{
+		case FbxNodeAttribute::eMesh:
+			ProcessControlPoints(m_Node);
+			if (m_HasAnimation)
 			{
-			case FbxNodeAttribute::eMesh:
-	 			ProcessControlPoints(m_Node);
-	 			if (m_HasAnimation)
-	 			{
-	 				ProcessJointsAndAnimations(m_Node);
-	 			}
-	 			ProcessMesh(m_Node);
-	 			break;
-	 		}
-	    }
+				ProcessJointsAndAnimations(m_Node);
+			}
+			ProcessMesh(m_Node);
+			break;
+		}
+	}
 
 	for (int i = 0; i < m_Node->GetChildCount(); ++i)
 	{
