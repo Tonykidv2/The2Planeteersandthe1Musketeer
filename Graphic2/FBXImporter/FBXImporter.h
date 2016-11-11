@@ -26,7 +26,10 @@
 
 
 
-extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path);
+extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+	std::vector<DirectX::XMFLOAT3>& out_Tangets);
+extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path,const char* newFile);
 extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts,DirectX::XMFLOAT3 uv,DirectX::XMFLOAT3 norm);
 extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
 	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
