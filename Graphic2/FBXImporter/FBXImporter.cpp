@@ -660,7 +660,7 @@ void FBXExporter::ProcessGeometry(FbxNode *m_Node)
 	 			ProcessMesh(m_Node);
 	 			break;
 	 		}
-	}
+	    }
 
 	for (int i = 0; i < m_Node->GetChildCount(); ++i)
 	{
