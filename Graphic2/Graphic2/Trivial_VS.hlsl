@@ -29,7 +29,6 @@ cbuffer OBJECT : register(b0)
 	float4x4 projectionMatrix;
 	float ScreenHeight;
 	float3 pad;
-	
 }
 
 cbuffer TRANSLATOR : register(b1)
@@ -37,8 +36,7 @@ cbuffer TRANSLATOR : register(b1)
 	float4x4 Rotation;
 	float4x4 Translate;
 	float Scale;
-	float3 padding;
-	 
+	float3 padding;	 
 }
 
 OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
@@ -47,6 +45,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	
 	sendToRasterizer.projectedCoordinate.xyz = fromVertexBuffer.pos.xyz;
 	sendToRasterizer.projectedCoordinate.w = 1;
+
 
 	float4x4 scales = float4x4( Scale,0.0f, 0.0f, 0.0f,
 								0.0f,Scale,0.0f,0.0f,
