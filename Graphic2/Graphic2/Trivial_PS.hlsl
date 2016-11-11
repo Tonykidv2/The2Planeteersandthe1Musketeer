@@ -54,14 +54,14 @@ float4 main( INPUT_PIXEL colorFromRasterizer ) : SV_TARGET
 
 	if (WhichTexture == 1)
 	{
-		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).xyzw;
-		ColorNorm = TextureNorm.Sample(FILTER, colorFromRasterizer.uv).xyz;
+		color = Texture1.Sample(FILTER, colorFromRasterizer.uv.rg).xyzw;
+		ColorNorm = TextureNorm.Sample(FILTER, colorFromRasterizer.uv.rg).xyz;
 	}
 
 	float3 newNormal = NormalCalcFunc(ColorNorm, colorFromRasterizer.Tangent , colorFromRasterizer.normal);
 
 	if (WhichTexture == 2)
-		color = Texture1.Sample(FILTER, colorFromRasterizer.uv).xyzw;
+		color = Texture1.Sample(FILTER, colorFromRasterizer.uv.rg).xyzw;
 
 	//float weight0, weight1, weight2, weight3, weight4;
 	//float normalization;
