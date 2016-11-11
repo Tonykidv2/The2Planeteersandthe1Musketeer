@@ -16,7 +16,7 @@ public:
 	Model(const char* ModelPath, const char* TexturePath, ID3D11Device& Device);
 	~Model();
 
-	bool DrawToScreen(ID3D11DeviceContext& Context, ID3D11Buffer* ConstantBuffer,);
+	bool DrawToScreen(ID3D11DeviceContext& Context, ID3D11Buffer* ConstantBuffer);
 
 
 };

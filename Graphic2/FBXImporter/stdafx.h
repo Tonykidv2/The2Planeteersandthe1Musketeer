@@ -14,6 +14,6 @@
 
 
 // TODO: reference additional headers your program requires here
-//#include <fbxsdk.h>
+
 #include <vector>
 #include <DirectXMath.h>

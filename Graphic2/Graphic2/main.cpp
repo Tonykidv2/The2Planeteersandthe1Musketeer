@@ -154,7 +154,6 @@ class DEMO_APP
 	ID3D11ShaderResourceView* m_text2;
 	bool lightsToggle = false;
 	bool textureSwitch = true;
-	bool mouseClick = false;
 
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
@@ -170,13 +169,19 @@ class DEMO_APP
 	bool Checked;
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount,bool IsFile);
+	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	ID3D11Buffer* BindPoseVertex = nullptr;
 	ID3D11Buffer* BindPoseIndex = nullptr;
 	ID3D11ShaderResourceView* BindPoseTexture = nullptr;
 	ID3D11ShaderResourceView* BindPoseNormTexture = nullptr;
 	unsigned BindPoseIndexCount;
 	DEMO_APP() {}
+
+	ID3D11Buffer* TeddyPoseVertex = nullptr;
+	ID3D11Buffer* TeddyPoseIndex = nullptr;
+	ID3D11ShaderResourceView* TeddyPoseTexture = nullptr;
+	ID3D11ShaderResourceView* TeddyPoseNormTexture = nullptr;
+	unsigned TeddyPoseIndexCount;
 public:
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -194,7 +199,7 @@ public:
 DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
 
-	
+
 	application = hinst; 
 	appWndProc = proc; 
 
@@ -243,7 +248,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&TesselScale, sizeof(TesselScale));
 	TesselScale.scale.x = 1.0f;
 
-	
 #pragma endregion
 	
 #pragma region Creating Star Shape
@@ -478,8 +482,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	bool files = true;
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount, files);
+	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount);
 #pragma endregion
 
 #pragma region Creating Deadpool
@@ -733,6 +736,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(g_pd3dDevice, L"DeadpoolSword_Normal.dds", NULL, &SwordNORMShaderView);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"TestCube.dds", NULL, &BindPoseTexture);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"NormBindPoseTexture.dds", NULL, &BindPoseNormTexture);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"Teddy_D.dds", NULL, &TeddyPoseTexture);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"Teddy_Norm.dds", NULL, &TeddyPoseNormTexture);
 #pragma endregion
 
 #pragma region Sampler
@@ -921,9 +926,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
 #pragma endregion
 
-	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount,files);
-	thread4.detach();
-
+	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
+	thread4.join();
+	thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.fbx", &TeddyPoseIndexCount);
+	thread5.detach();
 	TimeWizard.Restart();
 
 
@@ -949,7 +955,7 @@ void DEMO_APP::init3D(HWND hWnd)
 	scd.SampleDesc.Count = 4;                               // how many multisamples
 															//scd.SampleDesc.Quality = 1;								
 	scd.Windowed = TRUE;                                    // windowed/full-screen mode
-	scd.Flags = 0;		// Special Flags
+	scd.Flags = 0; //DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;		// Special Flags
 	scd.BufferDesc.Scaling = DXGI_MODE_SCALING_CENTERED;
 	scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 
@@ -1108,7 +1114,7 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 }
 
 void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
-	unsigned int* IndexCount,bool IsFile)
+	unsigned int* IndexCount)
 {
 
 	vector<XMFLOAT4> verts;
@@ -1122,7 +1128,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//verts.clear();
 	//norms.clear();
 	//uvs.clear();
-	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent,IsFile);
+	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
 
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];
@@ -1136,7 +1142,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 		//Model[i].Tangent = tangent[i];
 	}
 
-	for (unsigned int i = 0; i < verts.size()-2; i += 3)
+	for (unsigned int i = 0; i < verts.size(); i += 3)
 	{
 		XMFLOAT4 v0 = Model[i + 0].XYZW;
 		XMFLOAT4 v1 = Model[i + 1].XYZW;
@@ -1258,8 +1264,8 @@ void DEMO_APP::ResizingOfWindows()
 	DXGI_SWAP_CHAIN_DESC m_swapChainDesc;
 	g_pSwapChain->GetDesc(&m_swapChainDesc);
 
-	g_DirectView.Width =(FLOAT)m_swapChainDesc.BufferDesc.Width;
-	g_DirectView.Height = (FLOAT)m_swapChainDesc.BufferDesc.Height;
+	g_DirectView.Width = m_swapChainDesc.BufferDesc.Width;
+	g_DirectView.Height = m_swapChainDesc.BufferDesc.Height;
 	g_DirectView.MinDepth = 0.0f;
 	g_DirectView.MaxDepth = 1.0f;
 	g_DirectView.TopLeftX = 0;
@@ -1272,8 +1278,8 @@ void DEMO_APP::ResizingOfWindows()
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC d_stencil = {};
 
-	m_texture2d.Width = (UINT)g_DirectView.Width;
-	m_texture2d.Height = (UINT)g_DirectView.Height;
+	m_texture2d.Width = g_DirectView.Width;
+	m_texture2d.Height = g_DirectView.Height;
 	m_texture2d.Usage = D3D11_USAGE_DEFAULT;
 	m_texture2d.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	m_texture2d.Format = DXGI_FORMAT_D32_FLOAT;
@@ -1771,9 +1777,9 @@ bool DEMO_APP::Run()
 #pragma endregion
 
 #pragma region Drawing FBX BIND-POSE Box
-	translating.Translate = XMMatrixTranslation(2, 0, 0);
+	translating.Translate = XMMatrixTranslation(-2, 0, 0);
 	translating.Scale = 1.0f;
-	WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
@@ -1798,6 +1804,47 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
 	if (BindPoseIndex)
 		g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
+
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Rotation = XMMatrixIdentity();
+	translating.Scale = 1.0f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion
+
+#pragma region Drawing FBX Teddy-POSE Box
+	translating.Translate = XMMatrixTranslation(2, 0, 0);
+	translating.Scale = .025f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	if (TeddyPoseIndex)
+		g_pd3dDeviceContext->DrawIndexed(TeddyPoseIndexCount, 0, 0);
 
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();
@@ -1938,17 +1985,12 @@ bool DEMO_APP::Run()
 	
 	spritebatch->Begin();
 	spritebatch->SetViewport(g_DirectView);
-	if (GetAsyncKeyState(VK_RBUTTON) & 0x1)
+	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON)&0x1))
 	{
-		
-	if (dest.Contains(CUR.x, CUR.y))
-		{
-			sound->Play();
+		sound->Play();
 			textureSwitch = !textureSwitch;
 			lightsToggle = true;
-		}
 	}
-	
 	if (!textureSwitch)
 	{
 		
@@ -2067,6 +2109,25 @@ void DEMO_APP::Clean3d()
 	RasterStateWireFrameTriangle->Release();
 	RasterStateSoildTriangle->Release();
 	CostantBufferTessScale->Release();
+
+	if(BindPoseVertex)
+	BindPoseVertex->Release();
+	if(BindPoseIndex)
+	BindPoseIndex->Release();
+	if(BindPoseTexture)
+	BindPoseTexture->Release();
+	if(BindPoseNormTexture)
+	BindPoseNormTexture->Release();
+	
+
+	if(TeddyPoseVertex)
+	TeddyPoseVertex->Release();
+	if(TeddyPoseIndex)
+	TeddyPoseIndex->Release();
+	if(TeddyPoseTexture)
+	TeddyPoseTexture->Release();
+	if(TeddyPoseNormTexture)
+	TeddyPoseNormTexture->Release();
 	//////AAron////////
 	m_text->Release();
 	m_textFont.release();
@@ -2122,69 +2183,69 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 						   {
 							   g_pd3dDeviceContext->OMGetRenderTargets(0, 0, 0);
 
-							   g_pRenderTargetView->Release();
+			  g_pRenderTargetView->Release();
 
-							   g_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+			  g_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
 
-							   DXGI_SWAP_CHAIN_DESC Chaindsc;
-							   g_pSwapChain->GetDesc(&Chaindsc);
+			  DXGI_SWAP_CHAIN_DESC Chaindsc;
+			  g_pSwapChain->GetDesc(&Chaindsc);
 
-							   ID3D11Texture2D* tempBuffer;
-							   g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
-								   (void**)&tempBuffer);
-								
-							   g_pd3dDevice->CreateRenderTargetView(tempBuffer, NULL,
-								   &g_pRenderTargetView);
+			  ID3D11Texture2D* tempBuffer;
+			  g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+			   (void**)&tempBuffer);
+			
+			  g_pd3dDevice->CreateRenderTargetView(tempBuffer, NULL,
+			   &g_pRenderTargetView);
 
-							   tempBuffer->Release();
+			  tempBuffer->Release();
 
-							   //g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, NULL);
-							  
+			  //g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, NULL);
+			 
 
-							   float nWidth = (float)Chaindsc.BufferDesc.Width;
-							   float nHeight = (float)Chaindsc.BufferDesc.Height;
+			  float nWidth = (float)Chaindsc.BufferDesc.Width;
+			  float nHeight = (float)Chaindsc.BufferDesc.Height;
 
-							   // Set up the viewport.
-							   D3D11_VIEWPORT vp;
-							   vp.Width = nWidth;
-							   vp.Height = nHeight;
-							   vp.MinDepth = 0.0f;
-							   vp.MaxDepth = 1.0f;
-							   vp.TopLeftX = 0;
-							   vp.TopLeftY = 0;
-							   
-							   g_pd3dDeviceContext->RSSetViewports(1, &vp);
+			  // Set up the viewport.
+			  D3D11_VIEWPORT vp;
+			  vp.Width = nWidth;
+			  vp.Height = nHeight;
+			  vp.MinDepth = 0.0f;
+			  vp.MaxDepth = 1.0f;
+			  vp.TopLeftX = 0;
+			  vp.TopLeftY = 0;
+			  
+			  g_pd3dDeviceContext->RSSetViewports(1, &vp);
 
-							   g_TexBuffer->Release();
+			  g_TexBuffer->Release();
 
-							   D3D11_TEXTURE2D_DESC texture2D;
-							   ZeroMemory(&texture2D, sizeof(texture2D));
-							   texture2D.Width = (UINT)nWidth;
-							   texture2D.Height = (UINT)nHeight;
-							   texture2D.Usage = D3D11_USAGE_DEFAULT;
-							   texture2D.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-							   texture2D.Format = DXGI_FORMAT_D32_FLOAT;
-							   texture2D.MipLevels = 1;
-							   texture2D.ArraySize = 1;
-							   texture2D.SampleDesc.Count = 4;
-							   g_pd3dDevice->CreateTexture2D(&texture2D, NULL, &g_TexBuffer);
+			  D3D11_TEXTURE2D_DESC texture2D;
+			  ZeroMemory(&texture2D, sizeof(texture2D));
+			  texture2D.Width = (UINT)nWidth;
+			  texture2D.Height = (UINT)nHeight;
+			  texture2D.Usage = D3D11_USAGE_DEFAULT;
+			  texture2D.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			  texture2D.Format = DXGI_FORMAT_D32_FLOAT;
+			  texture2D.MipLevels = 1;
+			  texture2D.ArraySize = 1;
+			  texture2D.SampleDesc.Count = 4;
+			  g_pd3dDevice->CreateTexture2D(&texture2D, NULL, &g_TexBuffer);
 
-							   g_StencilView->Release();
+			  g_StencilView->Release();
 
-							   D3D11_DEPTH_STENCIL_VIEW_DESC stencil;
-							   ZeroMemory(&stencil, sizeof(stencil));
-							   stencil.Format = DXGI_FORMAT_D32_FLOAT;
-							   stencil.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;		//use this enum to incorporate sampleDecs.count/.Quality values otherwise use D3D11_DSV_DIMENSION_TEXTURE2D
-							   stencil.Texture2D.MipSlice = 0;
-							   g_pd3dDevice->CreateDepthStencilView(g_TexBuffer, &stencil, &g_StencilView);
+			  D3D11_DEPTH_STENCIL_VIEW_DESC stencil;
+			  ZeroMemory(&stencil, sizeof(stencil));
+			  stencil.Format = DXGI_FORMAT_D32_FLOAT;
+			  stencil.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;		//use this enum to incorporate sampleDecs.count/.Quality values otherwise use D3D11_DSV_DIMENSION_TEXTURE2D
+			  stencil.Texture2D.MipSlice = 0;
+			  g_pd3dDevice->CreateDepthStencilView(g_TexBuffer, &stencil, &g_StencilView);
 
-							   g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
+			  g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
 
-							   g_DirectView.Height = nHeight;
-							   g_DirectView.Width = nWidth;
-							   
-							   g_ScreenChanged = true;
-							   g_newProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(FIELDOFVIEW), (nWidth / nHeight), ZNEAR, ZFAR);
+			  g_DirectView.Height = nHeight;
+			  g_DirectView.Width = nWidth;
+			  
+			  g_ScreenChanged = true;
+			  g_newProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(FIELDOFVIEW), (nWidth / nHeight), ZNEAR, ZFAR);
 
 						   }*/
 		};
