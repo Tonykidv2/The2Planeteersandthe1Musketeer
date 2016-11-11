@@ -154,6 +154,7 @@ class DEMO_APP
 	ID3D11ShaderResourceView* m_text2;
 	bool lightsToggle = false;
 	bool textureSwitch = true;
+	bool mouseClick = false;
 
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
@@ -169,7 +170,7 @@ class DEMO_APP
 	bool Checked;
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
+	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount,bool IsFile);
 	ID3D11Buffer* BindPoseVertex = nullptr;
 	ID3D11Buffer* BindPoseIndex = nullptr;
 	ID3D11ShaderResourceView* BindPoseTexture = nullptr;
@@ -477,7 +478,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount);
+	bool files = true;
+	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount, files);
 #pragma endregion
 
 #pragma region Creating Deadpool
@@ -919,7 +921,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
 #pragma endregion
 
-	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
+	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount,files);
 	thread4.detach();
 
 	TimeWizard.Restart();
@@ -1106,7 +1108,7 @@ void DEMO_APP::CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11B
 }
 
 void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
-	unsigned int* IndexCount)
+	unsigned int* IndexCount,bool IsFile)
 {
 
 	vector<XMFLOAT4> verts;
@@ -1120,7 +1122,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//verts.clear();
 	//norms.clear();
 	//uvs.clear();
-	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
+	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent,IsFile);
 
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];
@@ -1134,7 +1136,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 		//Model[i].Tangent = tangent[i];
 	}
 
-	for (unsigned int i = 0; i < verts.size(); i += 3)
+	for (unsigned int i = 0; i < verts.size()-2; i += 3)
 	{
 		XMFLOAT4 v0 = Model[i + 0].XYZW;
 		XMFLOAT4 v1 = Model[i + 1].XYZW;
@@ -1256,8 +1258,8 @@ void DEMO_APP::ResizingOfWindows()
 	DXGI_SWAP_CHAIN_DESC m_swapChainDesc;
 	g_pSwapChain->GetDesc(&m_swapChainDesc);
 
-	g_DirectView.Width = m_swapChainDesc.BufferDesc.Width;
-	g_DirectView.Height = m_swapChainDesc.BufferDesc.Height;
+	g_DirectView.Width =(FLOAT)m_swapChainDesc.BufferDesc.Width;
+	g_DirectView.Height = (FLOAT)m_swapChainDesc.BufferDesc.Height;
 	g_DirectView.MinDepth = 0.0f;
 	g_DirectView.MaxDepth = 1.0f;
 	g_DirectView.TopLeftX = 0;
@@ -1270,8 +1272,8 @@ void DEMO_APP::ResizingOfWindows()
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC d_stencil = {};
 
-	m_texture2d.Width = g_DirectView.Width;
-	m_texture2d.Height = g_DirectView.Height;
+	m_texture2d.Width = (UINT)g_DirectView.Width;
+	m_texture2d.Height = (UINT)g_DirectView.Height;
 	m_texture2d.Usage = D3D11_USAGE_DEFAULT;
 	m_texture2d.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	m_texture2d.Format = DXGI_FORMAT_D32_FLOAT;
@@ -1936,12 +1938,17 @@ bool DEMO_APP::Run()
 	
 	spritebatch->Begin();
 	spritebatch->SetViewport(g_DirectView);
-	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON)&0x1))
+	if (GetAsyncKeyState(VK_RBUTTON) & 0x1)
 	{
-		sound->Play();
+		
+	if (dest.Contains(CUR.x, CUR.y))
+		{
+			sound->Play();
 			textureSwitch = !textureSwitch;
 			lightsToggle = true;
+		}
 	}
+	
 	if (!textureSwitch)
 	{
 		

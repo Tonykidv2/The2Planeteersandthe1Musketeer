@@ -97,7 +97,7 @@ namespace LoadModel
 
 	bool LoadFBX(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
 		std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
-		std::vector<DirectX::XMFLOAT3>& out_Tangets)
+		std::vector<DirectX::XMFLOAT3>& out_Tangets,bool IsFile)
 	{
 		//FbxManager* g_pFbxManager = nullptr;
 		//
@@ -195,7 +195,29 @@ namespace LoadModel
 		//	}
 		//}
 		//return true;
-		return LoadFBXDLL(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);
+		
+		
+		
+		
+		
+		
+		std::string newFile = path;
+		newFile.pop_back();
+		newFile.pop_back();
+		newFile.pop_back();
+		newFile.pop_back();
+
+		std::string binPath = ".bin";
+		newFile += binPath;
+		//check = LoadFBXDLL(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);;
+		if(IsFile==false)
+			StoreFBXDLLinBin(newFile.c_str());
+		ReadFBXDLLfromBinary(newFile.c_str(), pOutVertexVector, out_UVs, out_Normals, out_Tangets);
+		//bool check= LoadFBXDLL(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);
+		
+			
+		
+		return true; //LoadFBXDLL(path, pOutVertexVector, out_UVs, out_Normals, out_Tangets);
 	}
 
 

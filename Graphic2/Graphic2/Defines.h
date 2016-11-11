@@ -18,7 +18,7 @@ using namespace std;
 #define RASTER_WIDTH 1280.0f
 #define RASTER_HEIGHT 720.0f
 #define NUM_PIXEL UINT(RASTER_WIDTH * RASTER_HEIGHT)
-#define M_PI 3.14159
+//#define M_PI 3.14159
 
 unsigned int Raster[NUM_PIXEL];
 float Zbuffer[NUM_PIXEL];

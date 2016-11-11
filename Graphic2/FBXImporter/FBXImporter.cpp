@@ -20,14 +20,13 @@
 //CFBXImporter::CFBXImporter()
 //{
 //    return;
-//}
+////}
 
-extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<DirectX::XMFLOAT4>& pOutVertexVector,
-	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
-	std::vector<DirectX::XMFLOAT3>& out_Tangets)
+
+extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
 {
 
-
+	int check=0;
 	FbxManager* g_pFbxManager = nullptr;
 
 	if (g_pFbxManager == nullptr)
@@ -52,13 +51,13 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 
 
 
-	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
-
-	if (pFbxRootNode)
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+	
+	if (rootNode)
 	{
-		for (int i = 0; i < pFbxRootNode->GetChildCount(); i++)
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
 		{
-			FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
 			if (pFbxChildNode->GetNodeAttribute() == NULL)
 				continue;
 
@@ -93,24 +92,25 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 					vertex.y = (float)pVertices[iControlPointIndex].mData[1];
 					vertex.z = (float)pVertices[iControlPointIndex].mData[2];
 					vertex.w = 1;
-					pOutVertexVector.push_back(vertex);
-
+					
+					
 					pMesh->GetPolygonVertexNormal(j, k, pNormals);
 					DirectX::XMFLOAT3 Normal;
 
 					Normal.x = -(float)pNormals.mData[0];
 					Normal.y = (float)pNormals.mData[1];
 					Normal.z = (float)pNormals.mData[2];
-					out_Normals.push_back(Normal);
-
+					
+					
 
 					int UvIndex = pMesh->GetTextureUVIndex(j, k);
 					pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
 					DirectX::XMFLOAT3 UV;
 					UV.x = (float)pUVs.mData[0];
 					UV.y = 1.0f - (float)pUVs.mData[1];
-					out_UVs.push_back(UV);
-
+					
+					
+					WriteFBXDLLtoBinary(path, vertex, UV, Normal);
 					//pTangent = TangentElement->GetDirectArray().GetAt(UvIndex);
 					//DirectX::XMFLOAT3 tangent;
 					//tangent.x = (float)pTangent.mData[0];
@@ -124,10 +124,79 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 		}
 			
 	}
-
-	pFbxRootNode->Destroy();
+	
+	rootNode->Destroy();
 	pImporter->Destroy();
 	pFbxScene->Destroy();
 	g_pFbxManager->Destroy();
 	return true;
+}
+extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts, DirectX::XMFLOAT3 uv, DirectX::XMFLOAT3 norm)
+{
+	
+	//char end[4] = "end";
+	std::fstream file(path, std::ios::out | std::ios::binary | std::ios::app);
+	
+		//verts
+		//file.write(id_vert, 5);
+		file.write((char*)&verts.x, sizeof(float));
+		
+		file.write((char*)&verts.y, sizeof(float));
+
+		file.write((char*)&verts.z, sizeof(float));
+	
+		file.write((char*)&verts.w, sizeof(float));
+	
+		//uvs
+		//file.write(id_uv, 3);
+		file.write((char*)&uv.x, sizeof(float));
+		
+		file.write((char*)&uv.y, sizeof(float));
+	
+		file.write((char*)&uv.z, sizeof(float));
+		
+
+		//normals
+		//file.write(id_norm, 5);
+		file.write((char*)&norm.x, sizeof(float));
+	
+		file.write((char*)&norm.y, sizeof(float));
+	
+		file.write((char*)&norm.z, sizeof(float));
+		
+
+		file.close();
+	
+	
+}
+extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, std::vector<DirectX::XMFLOAT4> &pOutVertexVector,
+	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
+	std::vector<DirectX::XMFLOAT3>& out_Tangets)
+{
+	DirectX::XMFLOAT4 vert;
+	DirectX::XMFLOAT3 uv;
+	DirectX::XMFLOAT3 norm;
+	std::ifstream file(path, std::ios::in | std::ios::binary);
+	if (file.is_open())
+	{
+		while (!file.eof())
+		{
+			file.read((char*)&vert.x, sizeof(float));
+			file.read((char*)&vert.y, sizeof(float));
+			file.read((char*)&vert.z, sizeof(float));
+			file.read((char*)&vert.w, sizeof(float));
+			pOutVertexVector.push_back(vert);
+			file.read((char*)&uv.x, sizeof(float));
+			file.read((char*)&uv.y, sizeof(float));
+			file.read((char*)&uv.z, sizeof(float));
+			out_UVs.push_back(uv);
+			file.read((char*)&norm.x, sizeof(float));
+			file.read((char*)&norm.y, sizeof(float));
+			file.read((char*)&norm.z, sizeof(float));
+			out_Normals.push_back(norm);
+
+		}
+	}
+	file.close();
+
 }
