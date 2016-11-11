@@ -39,8 +39,16 @@ extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path)
 
 	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
 	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
-
-	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+	std::string realFile = path;
+	realFile.pop_back();
+	realFile.pop_back();
+	realFile.pop_back();
+	realFile.pop_back();
+	realFile.push_back('.');
+	realFile.push_back('f');
+	realFile.push_back('b');
+	realFile.push_back('x');
+	bool Successs = pImporter->Initialize(realFile.c_str(), -1, g_pFbxManager->GetIOSettings());
 
 	if (!Successs)
 		return false;

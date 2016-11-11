@@ -1128,7 +1128,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//verts.clear();
 	//norms.clear();
 	//uvs.clear();
-	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
+	LoadModel::LoadFBX(Path, verts, uvs, norms, tangent,false);
 
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];
@@ -1142,7 +1142,8 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 		//Model[i].Tangent = tangent[i];
 	}
 
-	for (unsigned int i = 0; i < verts.size(); i += 3)
+
+	for (unsigned int i = 0; i < verts.size()-2; i += 3)
 	{
 		XMFLOAT4 v0 = Model[i + 0].XYZW;
 		XMFLOAT4 v1 = Model[i + 1].XYZW;
@@ -1264,8 +1265,8 @@ void DEMO_APP::ResizingOfWindows()
 	DXGI_SWAP_CHAIN_DESC m_swapChainDesc;
 	g_pSwapChain->GetDesc(&m_swapChainDesc);
 
-	g_DirectView.Width = m_swapChainDesc.BufferDesc.Width;
-	g_DirectView.Height = m_swapChainDesc.BufferDesc.Height;
+	g_DirectView.Width =(FLOAT)m_swapChainDesc.BufferDesc.Width;
+	g_DirectView.Height = (FLOAT)m_swapChainDesc.BufferDesc.Height;
 	g_DirectView.MinDepth = 0.0f;
 	g_DirectView.MaxDepth = 1.0f;
 	g_DirectView.TopLeftX = 0;
@@ -1278,8 +1279,8 @@ void DEMO_APP::ResizingOfWindows()
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC d_stencil = {};
 
-	m_texture2d.Width = g_DirectView.Width;
-	m_texture2d.Height = g_DirectView.Height;
+	m_texture2d.Width =(UINT)g_DirectView.Width;
+	m_texture2d.Height = (UINT)g_DirectView.Height;
 	m_texture2d.Usage = D3D11_USAGE_DEFAULT;
 	m_texture2d.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	m_texture2d.Format = DXGI_FORMAT_D32_FLOAT;
