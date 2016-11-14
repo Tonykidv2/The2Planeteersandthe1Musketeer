@@ -35,3 +35,6 @@ extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, st
 	std::vector<DirectX::XMFLOAT3>& out_UVs, std::vector<DirectX::XMFLOAT3>& out_Normals,
 	std::vector<DirectX::XMFLOAT3>& out_Tangets);
 
+
+
+
