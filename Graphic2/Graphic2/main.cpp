@@ -2050,8 +2050,7 @@ bool DEMO_APP::Run()
 			else
 			ClearInput();
 		}
-		if (GetAsyncKeyState(VK_RETURN)&0x1)
-			currentLine++;
+		
 		if(currentLine==0&&(wcscmp(lines[currentLine].text, L"")==0))
 			lines[currentLine].text = L"Press Left Shift";
 		if (GetAsyncKeyState(VK_BACK) & 0x1)
