@@ -27,6 +27,7 @@
 #include "SimpleMath.h"
 #include "SpriteFont.h"
 #include<Audio.h>
+#include<conio.h>
 
 #define BACKBUFFER_WIDTH	1280.0f
 #define BACKBUFFER_HEIGHT	720.0f
@@ -142,7 +143,9 @@ class DEMO_APP
 	void Clean3d();
 	void DrawComplexModel(ID3D11Buffer* VertexBuffer, ID3D11Buffer* IndexBuffer, ID3D11ShaderResourceView* Texture, ID3D11VertexShader* vertexShader, 
 		ID3D11PixelShader* pixelShader, unsigned int IndexCount, ID3D11DeviceContext* context);
-
+	void GetInputTextBox(wstring& text);
+	void ClearInput();
+	void InitInput();
 	SEND_TO_VRAM_WORLD WorldShader;
 	SEND_TO_VRAM_PIXEL VRAMPixelShader;
 	TRANSLATOR translating;
@@ -153,11 +156,16 @@ class DEMO_APP
 	unique_ptr<SoundEffect> sound;
 	ID3D11ShaderResourceView* m_text;
 	ID3D11ShaderResourceView* m_text2;
+	ID3D11ShaderResourceView* m_textbox;
 	bool lightsToggle = false;
 	bool textureSwitch = true;
-	bool makeIt1 = false;
-	bool makeIt2 = false;
-	bool makeIt3 = false;
+	bool textControls = false;
+	vector<Words> lines;
+	vector<wstring> words;
+	XMFLOAT2 textWordpos=XMFLOAT2(5, 400);
+	int indexLineY = 400;
+	int currentLine = 0;
+
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
 #endif
@@ -928,8 +936,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_textFont.reset(new SpriteFont(g_pd3dDevice, L"Arial.spritefont"));
 	CreateDDSTextureFromFile(g_pd3dDevice, L"Green_Button.dds", NULL, &m_text);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"Red_Button.dds", NULL, &m_text2);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"textbox.dds", NULL, &m_textbox);
 	audio.reset(new AudioEngine(AudioEngine_Default));
 	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
+	InitInput();
 #pragma endregion
 
 
@@ -1381,39 +1391,40 @@ bool DEMO_APP::Run()
 	}
 #endif
 #if !USINGOLDLIGHTCODE
-	
-		if (GetAsyncKeyState('X'))
-		{
-			Lights[1].Position.x += (float)TimeWizard.SmoothDelta();
-		}
-		if (GetAsyncKeyState('Z'))
-		{
-			Lights[1].Position.x -= (float)TimeWizard.SmoothDelta();
-		}
-		if (GetAsyncKeyState('C'))
-		{
-			Lights[1].Position.y += (float)TimeWizard.SmoothDelta();
-		}
-		if (GetAsyncKeyState('V'))
-		{
-			Lights[1].Position.y -= (float)TimeWizard.SmoothDelta();
-		}
-		if (GetAsyncKeyState('B'))
-		{
-			Lights[1].Position.z += (float)TimeWizard.SmoothDelta();
-		}
-		if (GetAsyncKeyState('N'))
-		{
-			Lights[1].Position.z -= (float)TimeWizard.SmoothDelta();
-		}
+	if (!textControls)
+	{
+	if (GetAsyncKeyState('X'))
+	{
+		Lights[1].Position.x += (float)TimeWizard.SmoothDelta();
+	}
+	if (GetAsyncKeyState('Z'))
+	{
+		Lights[1].Position.x -= (float)TimeWizard.SmoothDelta();
+	}
+	if (GetAsyncKeyState('C'))
+	{
+		Lights[1].Position.y += (float)TimeWizard.SmoothDelta();
+	}
+	if (GetAsyncKeyState('V'))
+	{
+		Lights[1].Position.y -= (float)TimeWizard.SmoothDelta();
+	}
+	if (GetAsyncKeyState('B'))
+	{
+		Lights[1].Position.z += (float)TimeWizard.SmoothDelta();
+	}
+	if (GetAsyncKeyState('N'))
+	{
+		Lights[1].Position.z -= (float)TimeWizard.SmoothDelta();
+	}
 
-		if (GetAsyncKeyState(VK_SPACE))
-		{
-			Lights[1].Position.x = -1.0f;
-			Lights[1].Position.y = 1.0f;
-			Lights[1].Position.z = 0;
-		}
-
+	if (GetAsyncKeyState(VK_SPACE))
+	{
+		Lights[1].Position.x = -1.0f;
+		Lights[1].Position.y = 1.0f;
+		Lights[1].Position.z = 0;
+	}
+}
 		if (GetAsyncKeyState(VK_NUMPAD8))
 		{
 			Lights[0].Direction.z -= (float)TimeWizard.SmoothDelta();
@@ -1461,44 +1472,46 @@ bool DEMO_APP::Run()
 #pragma endregion 
 
 #pragma region Toggle Normal Map
-
-	if (GetAsyncKeyState('M') & 0x1)
-	{
-		ToggleBumpMap = !ToggleBumpMap;
-	}
-
+		 if (!textControls)
+		 {
+			 if (GetAsyncKeyState('M') & 0x1)
+			 {
+				 ToggleBumpMap = !ToggleBumpMap;
+			 }
+		 }
 #pragma endregion
 
 #pragma region ControlCamera
 
 	XMMATRIX T;
-
-	if (GetAsyncKeyState('W'))
+	if (!textControls)
 	{
+		if (GetAsyncKeyState('W'))
+		{
 
-		T = XMMatrixTranslation(0, 0, (float)TimeWizard.Delta());
-		m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+			T = XMMatrixTranslation(0, 0, (float)TimeWizard.Delta());
+			m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+		}
+		if (GetAsyncKeyState('S'))
+		{
+			T = XMMatrixTranslation(0, 0, (float)-TimeWizard.Delta());
+			m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+		}
+
+		XMMATRIX L;
+		if (GetAsyncKeyState('D'))
+		{
+
+			L = XMMatrixTranslation((float)TimeWizard.Delta(), 0, 0);
+			m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
+		}
+		if (GetAsyncKeyState('A'))
+		{
+
+			L = XMMatrixTranslation((float)-TimeWizard.Delta(), 0, 0);
+			m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
+		}
 	}
-	if (GetAsyncKeyState('S'))
-	{
-		T = XMMatrixTranslation(0, 0, (float)-TimeWizard.Delta());
-		m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
-	}
-
-	XMMATRIX L;
-	if (GetAsyncKeyState('D'))
-	{
-
-		L = XMMatrixTranslation((float)TimeWizard.Delta(), 0, 0);
-		m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
-	}
-	if (GetAsyncKeyState('A'))
-	{
-
-		L = XMMatrixTranslation((float)-TimeWizard.Delta(), 0, 0);
-		m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
-	}
-
 	XMMATRIX C;
 	if (GetAsyncKeyState(VK_UP))
 	{
@@ -2018,6 +2031,83 @@ bool DEMO_APP::Run()
 	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1),DirectX::Colors::DeepPink);
 	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+#pragma region TextBox
+	spritebatch->Draw(m_textbox, XMFLOAT2(5, 400), NULL, DirectX::Colors::White);
+	if ( GetAsyncKeyState(VK_LSHIFT) & 0x1)
+	{
+		textControls = !textControls;
+	}
+	
+	if (textControls)
+	{
+		if (GetAsyncKeyState(VK_DELETE) & 0x1)
+		{
+			if (GetAsyncKeyState(VK_LSHIFT) & 0X1)
+			{
+				textControls = false;
+				ClearInput();
+			}
+			else
+			ClearInput();
+		}
+		if (GetAsyncKeyState(VK_RETURN)&0x1)
+			currentLine++;
+		if(currentLine==0&&(wcscmp(lines[currentLine].text, L"")==0))
+			lines[currentLine].text = L"Press Left Shift";
+		if (GetAsyncKeyState(VK_BACK) & 0x1)
+		{
+			if(!words[currentLine].empty())
+			words[currentLine].pop_back();
+			else if (words[currentLine].empty())
+				words[currentLine] = L"Press Left Shift";
+			if (currentLine != 0 && (wcscmp(words[currentLine].c_str(), L"") == 0||currentLine>=13))
+			{
+				currentLine--;
+				words[currentLine].pop_back();
+				lines[currentLine].check = false;
+			}
+		}
+			if (words[currentLine].size() > 18&&currentLine<13)
+			{
+				
+				
+			GetInputTextBox(words[currentLine]);
+			//lines[currentLine].text = words[currentLine].c_str();
+			lines[currentLine].check=true;
+				currentLine++;
+			}
+			else
+			{
+				if (currentLine < 13)
+				{
+					if (words[currentLine].size() <= 18)
+					{
+						GetInputTextBox(words[currentLine]);
+						lines[currentLine].text = words[currentLine].c_str();
+					}
+				}
+			}
+		
+	}
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		if (currentLine > 13)
+			currentLine = 13;
+		if (lines[i].check)
+		{
+			m_textFont->DrawString(spritebatch.get(), lines[i].text, lines[i].pos, DirectX::Colors::Black);
+
+		}
+		else
+		{
+			if (wcscmp( lines[i].text,L"Press Left Shift")==0)
+				break;
+			m_textFont->DrawString(spritebatch.get(), lines[currentLine].text, lines[i].pos, DirectX::Colors::Black);
+			break;
+		}
+	}
+	
+#pragma endregion
 	spritebatch->End();
 	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
 #pragma endregion
@@ -2094,6 +2184,9 @@ void DEMO_APP::Clean3d()
 	SwordNORMShaderView->Release();
 	DeadpoolShaderView->Release();
 	DeadpoolNORMShaderView->Release();
+	lines.clear();
+	words.clear();
+	m_textbox->Release();
 
 	BlendState->Release();
 
@@ -2261,5 +2354,65 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 		};
     }
     return DefWindowProc( hWnd, message, wParam, lParam );
+}
+void DEMO_APP::GetInputTextBox(wstring& text)
+{
+	bool done = false;
+	
+	if (text.compare(L"Press Left Shift") == 0)
+	{
+		while (!text.empty())
+			text.pop_back();
+	}
+	
+		
+	
+		for (char i = 32; i < 127; ++i)
+		{
+			if (GetAsyncKeyState(i)&0x1 )
+			{
+				text.push_back(i);
+			}
+	
+		}
+		
+		
+	/*	if (text.empty()&&currentLine==0)
+			text = L"Enter";*/
+
+
+}
+void DEMO_APP::ClearInput()
+{
+	words.clear();
+	lines.clear();
+	currentLine = 0;
+	indexLineY = 400;
+	InitInput();
+}
+void DEMO_APP::InitInput()
+{
+	for (size_t i = 0; i < 14; i++)
+	{
+
+		Words enter;
+
+		enter.text = L"Press Left Shift";
+		wstring text;
+		if (i == 0)
+			text = L"Press Left Shift";
+		words.push_back(text);
+		if (i == 0)
+			enter.check = true;
+		else
+			enter.check = false;
+		enter.pos = XMFLOAT2(5, (float)indexLineY);
+		indexLineY += 22;
+		/*if(i==0)
+		enter.check = true;
+		else
+		enter.check = false;*/
+		lines.push_back(enter);
+	}
 }
 //********************* END WARNING ************************//
