@@ -84,12 +84,12 @@ struct SkinnedVertex
 struct cBufferSkeleton
 {
 	//std::vector<DirectX::XMFLOAT4X4> JointPostion;
-	DirectX::XMFLOAT4X4 JointPostion[96];
+	DirectX::XMFLOAT4X4 JointPostion[50];
 
 	cBufferSkeleton()
 	{
 		//JointPostion.resize(96);
-		for (int i = 0; i < 96; i++)
+		for (int i = 0; i < 50; i++)
 		{
 			JointPostion[i] = { 1,0,0,0, 0,1,0,0, 0,0,1,0 ,0,0,0,1 };
 		}

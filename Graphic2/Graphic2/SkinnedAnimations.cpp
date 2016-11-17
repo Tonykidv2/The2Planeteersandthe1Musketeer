@@ -93,7 +93,7 @@ float AnimationClip::GetClipEndTime()const
 	return t;
 }
 
-void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[96])const
+void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[50])const
 {
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
@@ -103,7 +103,7 @@ void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[96
 	}
 }
 
-void AnimationController::Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[96])
+void AnimationController::Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[50])
 {
 	if (GetAsyncKeyState(VK_NUMPAD0) & 0x1)
 	{

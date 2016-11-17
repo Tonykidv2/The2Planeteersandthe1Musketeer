@@ -880,10 +880,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		list[i].WorldLocation = XMMatrixIdentity();
 	}
 	
-	list[0].WorldLocation = XMMatrixTranslation(-10.0f, 0.0f, 10.0f);
-	list[1].WorldLocation = XMMatrixTranslation(10.0f, 0.0f, 10.0f);
-	list[2].WorldLocation = XMMatrixTranslation(10.0f, 0.0f, -10.0f);
-	list[3].WorldLocation = XMMatrixTranslation(-10.0f, 0.0f, -10.0f);
+	list[0].WorldLocation = XMMatrixTranslation(2.0f, 0.0f, 0.0f);
+	list[1].WorldLocation = XMMatrixTranslation(-2.0f, 0.0f, 0.0f);
+	list[2].WorldLocation = XMMatrixTranslation(0.0f, 0.0f, 2.0f);
+	list[3].WorldLocation = XMMatrixTranslation(0.0f, 0.0f, -2.0f);
 	
 	
 	D3D11_BUFFER_DESC instanceBufferDesc;
@@ -1350,6 +1350,7 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 	device->CreateBuffer(&indexBuffDesc_Model, &indexData_Model, IndexBuffer);
 
 #pragma endregion
+
 	AnimationClip Clip;
 	AnimationClip Clip2;
 	size_t BoneCount = cSkeleton.m_Joints.size();
@@ -1388,8 +1389,8 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 	skeleton->Anim.push_back(Clip);
 	skeleton->Anim.push_back(Clip2);
 
-	animationdone = true;
 	*IndexCount = (unsigned int)SkinVert.size();
+	animationdone = true;
 	delete[] ModelIndices;
 
 }
@@ -2026,11 +2027,12 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->VSSetShader(SkinningShader, NULL, NULL);
 	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
 	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &MageSkeleonBuffer);
+	g_pd3dDeviceContext->VSSetConstantBuffers(3, 1, &InstanceCostantBuffer);
 	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &MagePoseTexture);
 	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &MagePoseNormTexture);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &MagePoseVertex, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(MagePoseIndex, DXGI_FORMAT_R32_UINT, 0);
-	if (MagePoseIndex)
+	if (MagePoseIndex && animationdone)
 	{
 		if (animationdone)
 			MageAnimation.Update((float)TimeWizard.Delta() * 10, &MageSkeleton.JointPostion);
@@ -2038,7 +2040,8 @@ bool DEMO_APP::Run()
 		g_pd3dDeviceContext->Map(MageSkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MageSkeleton_Map);
 		memcpy_s(MageSkeleton_Map.pData, sizeof(cBufferSkeleton), MageSkeleton.JointPostion, sizeof(cBufferSkeleton));
 		g_pd3dDeviceContext->Unmap(MageSkeleonBuffer, 0);
-		g_pd3dDeviceContext->DrawIndexed(MagePoseIndexCount, 0, 0);
+		//g_pd3dDeviceContext->DrawIndexed(MagePoseIndexCount, 0, 0);
+		g_pd3dDeviceContext->DrawInstanced(MagePoseIndexCount, 4, 0, 0);
 	}
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();

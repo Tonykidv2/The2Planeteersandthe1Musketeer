@@ -42,10 +42,15 @@ cbuffer TRANSLATOR : register(b1)
 
 cbuffer Skeleton : register(b2)
 {
-    float4x4 bonesTrans[96];
+    float4x4 bonesTrans[50];
 }
 
-OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
+cbuffer WORLDOBJECT : register(b3)
+{
+    float4x4 world[4];
+}
+
+OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer , unsigned int id : SV_InstanceID)
 {
     float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     weights[0] = fromVertexBuffer.JointWeights.x;
@@ -92,6 +97,7 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
     sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, Translate);
 
     sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMatrix);
+    sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, world[id]);
     sendToRasterizer.posW = sendToRasterizer.projectedCoordinate.xyz;
     //sendToRasterizer.posW = mul(worldMatrix, float4(sendToRasterizer.posW, 0.0));
 

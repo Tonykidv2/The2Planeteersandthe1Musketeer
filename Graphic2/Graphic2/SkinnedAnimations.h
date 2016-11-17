@@ -21,7 +21,7 @@ struct AnimationClip
 	float GetClipStartTime()const;
 	float GetClipEndTime()const;
 
-	void Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[96])const;
+	void Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[50])const;
 
 	std::vector<BoneAnimation*> BoneAnimations;
 
@@ -42,6 +42,6 @@ struct AnimationController
 		CurrTime = 0.1f;
 		WhichAnimation = 0;
 	}
-	void Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[96]);
+	void Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[50]);
 	
 };
