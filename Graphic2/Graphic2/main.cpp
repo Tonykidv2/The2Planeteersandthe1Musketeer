@@ -2439,9 +2439,29 @@ void DEMO_APP::thirdViewPort()
 	float timer = (float)TimeWizard.TotalTime();
 
 	if (g_ScreenChanged)
+	POINT CUR;
+	GetCursorPos(&CUR);
+	ScreenToClient(window, &CUR);
+	//RECT* dest;  //Rectangle(1, 2, 336, 127);
+	ID3D11Texture2D* x;
+	m_text->GetResource((ID3D11Resource**)&x);
+	D3D11_TEXTURE2D_DESC desc;
+	x->GetDesc(&desc);
+	
+	SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width/2, desc.Height/2);
+	
+	spritebatch->Begin();
+	spritebatch->SetViewport(g_DirectView);
+	if (GetAsyncKeyState(VK_RBUTTON) & 0x1)
 	{
 		WorldShader.projectView = g_newProjection;
 		g_ScreenChanged = false;
+		if (dest.Contains(CUR.x, CUR.y))
+		{
+			sound->Play();
+			textureSwitch = !textureSwitch;
+			lightsToggle = true;
+		}
 	}
 
 	g_thirdDirectView.Width = _swapChainDesc.BufferDesc.Width * 0.5f;
