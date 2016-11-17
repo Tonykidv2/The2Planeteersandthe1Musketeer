@@ -2186,9 +2186,7 @@ void DEMO_APP::Clean3d()
 	SwordNORMShaderView->Release();
 	DeadpoolShaderView->Release();
 	DeadpoolNORMShaderView->Release();
-	lines.clear();
-	words.clear();
-	m_textbox->Release();
+	
 
 	BlendState->Release();
 
@@ -2237,6 +2235,11 @@ void DEMO_APP::Clean3d()
 	m_text->Release();
 	m_textFont.release();
 	spritebatch.release();
+	lines.clear();
+	words.clear();
+	m_textbox->Release();
+	sound.release();
+	audio.release();
 }
 
 //************************************************************
