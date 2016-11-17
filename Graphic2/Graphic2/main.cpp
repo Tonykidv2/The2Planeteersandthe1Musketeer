@@ -40,7 +40,8 @@ ID3D11Device*			g_pd3dDevice;
 ID3D11DepthStencilView* g_StencilView;
 ID3D11Texture2D*		g_TexBuffer;
 D3D11_VIEWPORT			g_DirectView;
-
+D3D11_VIEWPORT          g_secondDirectView;
+D3D11_VIEWPORT          g_thirdDirectView;
 bool g_ScreenChanged;
 bool g_Minimized;
 XMMATRIX g_newProjection;
@@ -158,6 +159,7 @@ class DEMO_APP
 	bool makeIt1 = false;
 	bool makeIt2 = false;
 	bool makeIt3 = false;
+	bool bSplitScreen;
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
 #endif
@@ -185,6 +187,7 @@ class DEMO_APP
 	ID3D11ShaderResourceView* TeddyPoseTexture = nullptr;
 	ID3D11ShaderResourceView* TeddyPoseNormTexture = nullptr;
 	unsigned TeddyPoseIndexCount;
+
 public:
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -193,6 +196,8 @@ public:
 	bool Run();
 	bool ShutDown();
 	void ResizingOfWindows();
+	void secondViewPort();
+	void thirdViewPort();
 };
 
 //************************************************************
@@ -939,7 +944,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	thread5.detach();
 	TimeWizard.Restart();
 
-
+	bSplitScreen = false;
 }
 
 void DEMO_APP::init3D(HWND hWnd)
@@ -1304,7 +1309,6 @@ void DEMO_APP::ResizingOfWindows()
 	g_pd3dDevice->CreateDepthStencilView(g_TexBuffer, NULL, &g_StencilView);
 
 	g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
-
 	g_newProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(60), g_DirectView.Width / g_DirectView.Height, ZNEAR, ZFAR);
 
 }
@@ -1407,12 +1411,12 @@ bool DEMO_APP::Run()
 			Lights[1].Position.z -= (float)TimeWizard.SmoothDelta();
 		}
 
-		if (GetAsyncKeyState(VK_SPACE))
-		{
-			Lights[1].Position.x = -1.0f;
-			Lights[1].Position.y = 1.0f;
-			Lights[1].Position.z = 0;
-		}
+		//if (GetAsyncKeyState(VK_SPACE))
+		//{
+		//	Lights[1].Position.x = -1.0f;
+		//	Lights[1].Position.y = 1.0f;
+		//	Lights[1].Position.z = 0;
+		//}
 
 		if (GetAsyncKeyState(VK_NUMPAD8))
 		{
@@ -1512,6 +1516,10 @@ bool DEMO_APP::Run()
 		m_viewMatrix = XMMatrixMultiply(m_viewMatrix, C);
 	}
 
+	if (GetAsyncKeyState(VK_SPACE) & 0x1)
+	{
+		bSplitScreen = !bSplitScreen;
+	}
 
 	XMVECTOR TempXYZW = m_viewMatrix.r[3];
 
@@ -1560,40 +1568,555 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
+	if (bSplitScreen == false && !GetAsyncKeyState(VK_SPACE))
+	{
 #pragma region Updating Video Buffers
-	//Sending NEW worldMARIX, viewMatrix, projectionMATRIX to videocard
+		//Sending NEW worldMARIX, viewMatrix, projectionMATRIX to videocard
+		D3D11_MAPPED_SUBRESOURCE m_mapSource;
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+		//Sending NEW rotation, scale, translation to videocard
+		D3D11_MAPPED_SUBRESOURCE m_mapSource2;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		//Sending NEW Texture details to videocard
+		D3D11_MAPPED_SUBRESOURCE m_mapSource1;
+		g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+		memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+		g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+		//Sending NEW Light Info to videoCard
+		//if (lightsToggle)
+		//{
+		D3D11_MAPPED_SUBRESOURCE LightSauce;
+		g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
+		memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
+		g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
+		//}
+		//Sending instance Data to the videoCard
+		D3D11_MAPPED_SUBRESOURCE InstanceSource;
+		g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
+		memcpy_s(InstanceSource.pData, sizeof(Instance) * 4, &list, sizeof(Instance) * 4);
+		g_pd3dDeviceContext->Unmap(InstanceCostantBuffer, 0);
+
+		//Sending new Scaling Data for Tessel Triangle
+		D3D11_MAPPED_SUBRESOURCE SizingTesselSource;
+		g_pd3dDeviceContext->Map(CostantBufferTessScale, 0, D3D11_MAP_WRITE_DISCARD, 0, &SizingTesselSource);
+		memcpy_s(SizingTesselSource.pData, sizeof(Scaling), &TesselScale, sizeof(Scaling));
+		g_pd3dDeviceContext->Unmap(CostantBufferTessScale, 0);
+
+		g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer[0]);
+		g_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &constantBuffer[1]);
+		g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &InstanceCostantBuffer);
+		g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &constantPixelBuffer);
+		g_pd3dDeviceContext->PSSetConstantBuffers(1, 1, &CostantBufferLights);
+		g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &constantBuffer[0]);
+		g_pd3dDeviceContext->DSSetConstantBuffers(1, 1, &constantBuffer[1]);
+		g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &CostantBufferTessScale);
+#pragma endregion
+
+		unsigned int stride = 0;
+		unsigned int offsets = 0;
+
+#pragma region Drawing Skybox
+
+		translating.Translate.r[3] = m_viewMatrix.r[3];
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+
+		stride = sizeof(VERTEX);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSkyBox, &stride, &offsets);
+
+		VRAMPixelShader.whichTexture = 0;
+
+		g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+		memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+		g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSkyBox, DXGI_FORMAT_R32_UINT, 0);
+		g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		g_pd3dDeviceContext->PSSetSamplers(0, 1, &sampleTexture);
+
+		g_pd3dDeviceContext->RSSetState(SkyBoxRasterState);
+
+		g_pd3dDeviceContext->DrawIndexed(SkyBoxIndexCount, 0, 0);
+
+#pragma endregion
+
+		g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+#pragma region Drawing Star
+
+		translating.Translate = XMMatrixTranslation(-2, 0, 0);
+		translating.Scale = 1.0f;
+		WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
+		translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
+
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+		stride = sizeof(SIMPLE_VERTEX);
+		offsets = 0;
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferStar, &stride, &offsets);
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[1]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[1], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[1], NULL, NULL);
+
+		g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferStar, DXGI_FORMAT_R32_UINT, 0);
+
+		g_pd3dDeviceContext->DrawIndexed(60, 0, 0);
+
+		WorldShader.worldMatrix = XMMatrixIdentity();
+		translating.Rotation = XMMatrixIdentity();
+		translating.Translate = XMMatrixIdentity();
+
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+#pragma endregion
+
+#pragma region Drawing light Source
+
+		if (Lights[1].Radius.x == 1)
+		{
+
+			translating.Translate = XMMatrixTranslation(Lights[1].Position.x, Lights[1].Position.y, Lights[1].Position.z);
+			translating.Scale = .1f;
+			g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+			memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+			g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+			g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
+			g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
+
+			g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
+
+			translating.Translate = XMMatrixTranslation(0, 0, 0);
+
+			g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+			memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+			g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		}
+
+#pragma endregion
+
+#pragma region DrawingSword
+
+		translating.Translate = XMMatrixTranslation(-3, 3, 0);
+		translating.Scale = .05f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		stride = sizeof(VERTEX);
+		if (ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 1;
+		else if (!ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 2;
+		g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+		memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+		g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShaderResources(1, 1, &SwordShaderView);
+		g_pd3dDeviceContext->PSSetShaderResources(2, 1, &SwordNORMShaderView);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSword, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSword, DXGI_FORMAT_R32_UINT, 0);
+		if (IndexBufferSword)
+			g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);
+
+#pragma endregion
+
+#pragma region Drawing Deadpool
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+		translating.Scale = .3f;
+		WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+		stride = sizeof(VERTEX);
+
+		if (ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 1;
+		else if (!ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 2;
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
+		g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
+		if (IndexBufferDeadpool)
+			g_pd3dDeviceContext->DrawIndexed(DeadpoolIndexCount, 0, 0);
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+		translating.Rotation = XMMatrixIdentity();
+		translating.Scale = 1.0f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		WorldShader.worldMatrix = XMMatrixIdentity();
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+#pragma endregion
+
+#pragma region Drawing FBX BIND-POSE Box
+		translating.Translate = XMMatrixTranslation(-2, 0, 0);
+		translating.Scale = 1.0f;
+		//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+		stride = sizeof(VERTEX);
+
+		if (ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 1;
+		else if (!ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 2;
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
+		g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &BindPoseVertex, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+		if (BindPoseIndex)
+			g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+		translating.Rotation = XMMatrixIdentity();
+		translating.Scale = 1.0f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		WorldShader.worldMatrix = XMMatrixIdentity();
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion
+
+#pragma region Drawing FBX Teddy-POSE Box
+		translating.Translate = XMMatrixTranslation(2, 0, 0);
+		translating.Scale = .025f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+		stride = sizeof(VERTEX);
+
+		if (ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 1;
+		else if (!ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 2;
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
+		g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+		if (TeddyPoseIndex)
+			g_pd3dDeviceContext->DrawIndexed(TeddyPoseIndexCount, 0, 0);
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+		translating.Rotation = XMMatrixIdentity();
+		translating.Scale = 1.0f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		WorldShader.worldMatrix = XMMatrixIdentity();
+		g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion
+
+#pragma region Drawing Floor
+
+		g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
+		g_pd3dDeviceContext->PSSetShaderResources(2, 1, &FloorNORMShaderView);
+
+		stride = sizeof(VERTEX);
+
+		if (ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 1;
+		else if (!ToggleBumpMap)
+			VRAMPixelShader.whichTexture = 2;
+
+		g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+		memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+		g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferPlane, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferPlane, DXGI_FORMAT_R32_UINT, 0);
+
+		g_pd3dDeviceContext->RSSetState(SkyBoxRasterState);
+		g_pd3dDeviceContext->DrawIndexed(PlaneIndexCount, 0, 0);
+#pragma endregion
+
+		//#pragma region Instancing Deadpool Wave
+		//
+		//	translating.Translate = XMMatrixTranslation(0, 0, 0);
+		//	translating.Scale = .05f;
+		//	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
+		//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		//	
+		//	stride = sizeof(VERTEX);
+		//	
+		//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		//	g_pd3dDeviceContext->VSSetShader(DirectVertShader[2], NULL, NULL);
+		//	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+		//	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
+		//	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
+		//	
+		//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &DeadpoolInstanceVertexBuffer, &stride, &offsets);
+		//	g_pd3dDeviceContext->IASetIndexBuffer(DeadpoolInstanceIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		//	
+		//	if(DeadpoolInstanceIndexBuffer)
+		//		g_pd3dDeviceContext->DrawInstanced(InstanceIndexCount, 4, 0, 0);
+		//	
+		//	translating.Translate = XMMatrixIdentity();
+		//	translating.Scale = 1.0f;
+		//	translating.Rotation = XMMatrixIdentity();
+		//	WorldShader.worldMatrix = XMMatrixIdentity();
+		//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		//	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+		//	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+		//	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+		//#pragma endregion
+
+		//#pragma region Drawing Tess. Triangle
+		//
+		//	translating.Translate = XMMatrixTranslation(3, 0, 0);
+		//	translating.Scale = .3f;
+		//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		//
+		//	
+		//	XMVECTOR DeadpoolPOS;
+		//	DeadpoolPOS.m128_f32[0] = 3.0f;
+		//	DeadpoolPOS.m128_f32[1] = TempXYZW.m128_f32[1];
+		//	DeadpoolPOS.m128_f32[2] = 0.0f;
+		//	
+		//	float distance = calcdist(TempXYZW, DeadpoolPOS);
+		//	
+		//	TesselScale.scale.x = distance;
+		//	
+		//	stride = sizeof(VERTEX);
+		//	offsets = 0;
+		//	
+		//	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
+		//	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
+		//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+		//	g_pd3dDeviceContext->VSSetShader(vertexShaderTriangle, NULL, NULL);
+		//	g_pd3dDeviceContext->PSSetShader(pixelShaderTriangle, NULL, NULL);
+		//	g_pd3dDeviceContext->HSSetShader(hullShaderTriangle, NULL, NULL);
+		//	g_pd3dDeviceContext->DSSetShader(domainShaderTriangle, NULL, NULL);
+		//	g_pd3dDeviceContext->RSSetState(RasterStateWireFrameTriangle);
+		//	
+		//	if(IndexBufferDeadpool)
+		//		g_pd3dDeviceContext->Draw(DeadpoolIndexCount, 0);
+		//
+		//	ID3D11HullShader* temp1 = nullptr;
+		//	ID3D11DomainShader* temp2 = nullptr;
+		//	g_pd3dDeviceContext->HSSetShader(temp1, NULL, NULL);
+		//	g_pd3dDeviceContext->DSSetShader(temp2, NULL, NULL);
+		//	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
+		//
+		//	translating.Translate = XMMatrixTranslation(0, 0, 0);
+		//	translating.Scale = 1;
+		//	translating.Rotation = XMMatrixIdentity();
+		//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		//
+		//#pragma endregion
+
+#pragma region Drawing Text
+
+		POINT CUR;
+		GetCursorPos(&CUR);
+		ScreenToClient(window, &CUR);
+		//RECT* dest;  //Rectangle(1, 2, 336, 127);
+		ID3D11Texture2D* x;
+		m_text->GetResource((ID3D11Resource**)&x);
+		D3D11_TEXTURE2D_DESC desc;
+		x->GetDesc(&desc);
+
+		SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width / 2, desc.Height / 2);
+
+		spritebatch->Begin();
+		spritebatch->SetViewport(g_DirectView);
+		if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON) & 0x1))
+		{
+			sound->Play();
+			textureSwitch = !textureSwitch;
+			lightsToggle = true;
+		}
+		if (!textureSwitch)
+		{
+
+			spritebatch->Draw(m_text2, XMFLOAT2(100, 100), NULL, DirectX::Colors::Red, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
+			m_textFont->DrawString(spritebatch.get(), L"OFF", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
+
+		}
+		else if (textureSwitch)
+		{
+			spritebatch->Draw(m_text, XMFLOAT2(100, 100), NULL, DirectX::Colors::Green, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
+			m_textFont->DrawString(spritebatch.get(), L"ON", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
+
+		}
+
+		m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1), DirectX::Colors::DeepPink);
+		//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+		spritebatch->End();
+		g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
+#pragma endregion
+	}
+
+	else
+	{
+		secondViewPort();
+		thirdViewPort();
+	}
+
+	g_pSwapChain->Present(1, 0);
+
+	return true; 
+}
+
+void DEMO_APP::secondViewPort()
+{
+	DXGI_SWAP_CHAIN_DESC m_swapChainDesc;
+	g_pSwapChain->GetDesc(&m_swapChainDesc);
+
+	TimeWizard.Signal();
+
+	float timer = (float)TimeWizard.TotalTime();
+
+	if (g_ScreenChanged)
+	{
+		WorldShader.projectView = g_newProjection;
+		g_ScreenChanged = false;
+	}
+
+	g_secondDirectView.Width = m_swapChainDesc.BufferDesc.Width * 0.5f;
+	g_secondDirectView.Height = m_swapChainDesc.BufferDesc.Height * 0.5f;
+	g_secondDirectView.MinDepth = 0.0f;
+	g_secondDirectView.MaxDepth = 1.0f;
+	g_secondDirectView.TopLeftX = 0;
+	g_secondDirectView.TopLeftY = 0;
+
+	//orientation of model
+	WorldShader.projectView = XMMatrixPerspectiveFovLH(XMConvertToRadians(60), g_DirectView.Width / g_DirectView.Height, ZNEAR, ZFAR);
+	// desc of camera
+	WorldShader.viewMatrix = XMMatrixInverse(NULL, m_viewMatrix);
+
+	g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
+	g_pd3dDeviceContext->RSSetViewports(1, &g_secondDirectView);
+	WorldShader.ScreenHeight = g_DirectView.Height;
+	float temp[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	g_pd3dDeviceContext->ClearRenderTargetView(g_pRenderTargetView, temp);
+	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
+
+	float BlendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	g_pd3dDeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
+
+	g_pd3dDeviceContext->PSSetShaderResources(0, 1, &SkyBoxShaderView);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
+	VRAMPixelShader.whichTexture = 0;
+
+	//Sending new worldMatrix, viewMatrix, projectionMatrix to videocard
 	D3D11_MAPPED_SUBRESOURCE m_mapSource;
 	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
-	//Sending NEW rotation, scale, translation to videocard
+	//Sending new rotation, scale, translation to videocard
 	D3D11_MAPPED_SUBRESOURCE m_mapSource2;
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	//Sending NEW Texture details to videocard
+	//Sending new texture details to videocard
 	D3D11_MAPPED_SUBRESOURCE m_mapSource1;
 	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
 	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
 	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
 
-	//Sending NEW Light Info to videoCard
-	//if (lightsToggle)
-	//{
-		D3D11_MAPPED_SUBRESOURCE LightSauce;
-		g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
-		memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
-		g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
-	//}
-	//Sending instance Data to the videoCard
+	//Sending NEW Light Info to VideoCard
+	D3D11_MAPPED_SUBRESOURCE LightSource;
+	g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSource);
+	memcpy_s(LightSource.pData, sizeof(Lights), &Lights, sizeof(Lights));
+	g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
+	
+	//Sending instance data to the videocard
 	D3D11_MAPPED_SUBRESOURCE InstanceSource;
 	g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
 	memcpy_s(InstanceSource.pData, sizeof(Instance) * 4, &list, sizeof(Instance) * 4);
 	g_pd3dDeviceContext->Unmap(InstanceCostantBuffer, 0);
 
-	//Sending new Scaling Data for Tessel Triangle
+	//Sending new scaling data for tesselation
 	D3D11_MAPPED_SUBRESOURCE SizingTesselSource;
 	g_pd3dDeviceContext->Map(CostantBufferTessScale, 0, D3D11_MAP_WRITE_DISCARD, 0, &SizingTesselSource);
 	memcpy_s(SizingTesselSource.pData, sizeof(Scaling), &TesselScale, sizeof(Scaling));
@@ -1607,18 +2130,15 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &constantBuffer[0]);
 	g_pd3dDeviceContext->DSSetConstantBuffers(1, 1, &constantBuffer[1]);
 	g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &CostantBufferTessScale);
-#pragma endregion
 
 	unsigned int stride = 0;
 	unsigned int offsets = 0;
 
-#pragma region Drawing Skybox
-
+	//Drawing the Skybox
 	translating.Translate.r[3] = m_viewMatrix.r[3];
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-
 
 	stride = sizeof(VERTEX);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSkyBox, &stride, &offsets);
@@ -1642,12 +2162,11 @@ bool DEMO_APP::Run()
 
 	g_pd3dDeviceContext->DrawIndexed(SkyBoxIndexCount, 0, 0);
 
-#pragma endregion
+	//Ending the SkyBox draw
 
 	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-#pragma region Drawing Star
-
+	//Drawing the Star
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
 	translating.Scale = 1.0f;
 	WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
@@ -1686,35 +2205,32 @@ bool DEMO_APP::Run()
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
-#pragma endregion
+	//Ending the star draw
 
-#pragma region Drawing light Source
-
+	//Drawing the Light source
 	if (Lights[1].Radius.x == 1)
 	{
 
 		translating.Translate = XMMatrixTranslation(Lights[1].Position.x, Lights[1].Position.y, Lights[1].Position.z);
-	translating.Scale = .1f;
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		translating.Scale = .1f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
 
-	g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
+		g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
 
-	translating.Translate = XMMatrixTranslation(0, 0, 0);
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
 
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 	}
+	//Ending the Light source draw 
 
-#pragma endregion
-
-#pragma region DrawingSword
-
+	//Drawing the sword
 	translating.Translate = XMMatrixTranslation(-3, 3, 0);
 	translating.Scale = .05f;
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
@@ -1722,7 +2238,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
 	stride = sizeof(VERTEX);
-	if(ToggleBumpMap)
+	if (ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 1;
 	else if (!ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 2;
@@ -1737,13 +2253,11 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &SwordNORMShaderView);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSword, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSword, DXGI_FORMAT_R32_UINT, 0);
-	if(IndexBufferSword)
-	 g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);
+	if (IndexBufferSword)
+		g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);
+	//Ending the sword draw
 
-#pragma endregion
-
-#pragma region Drawing Deadpool
-
+	//Drawing the DeadPool
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Scale = .3f;
 	WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
@@ -1756,7 +2270,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
 	stride = sizeof(VERTEX);
-	
+
 	if (ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 1;
 	else if (!ToggleBumpMap)
@@ -1769,7 +2283,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
-	if(IndexBufferDeadpool)
+	if (IndexBufferDeadpool)
 		g_pd3dDeviceContext->DrawIndexed(DeadpoolIndexCount, 0, 0);
 
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
@@ -1783,10 +2297,9 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+	//Ending the Deadpool draw
 
-#pragma endregion
-
-#pragma region Drawing FBX BIND-POSE Box
+	//Drawing FBX BIND_POSE Box
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
 	translating.Scale = 1.0f;
 	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
@@ -1826,9 +2339,9 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
-#pragma endregion
+	//Ending the FBX BIND_POSE Box
 
-#pragma region Drawing FBX Teddy-POSE Box
+	//Drawing the FBX Teddy
 	translating.Translate = XMMatrixTranslation(2, 0, 0);
 	translating.Scale = .025f;
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
@@ -1867,15 +2380,14 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
-#pragma endregion
+	//Ending the Teddy Drawing
 
-#pragma region Drawing Floor
-
+	//Drawing the floor
 	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
 	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &FloorNORMShaderView);
 
 	stride = sizeof(VERTEX);
-	
+
 	if (ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 1;
 	else if (!ToggleBumpMap)
@@ -1894,137 +2406,371 @@ bool DEMO_APP::Run()
 
 	g_pd3dDeviceContext->RSSetState(SkyBoxRasterState);
 	g_pd3dDeviceContext->DrawIndexed(PlaneIndexCount, 0, 0);
-#pragma endregion
+	//Ending the Drawing of Floor
+}
 
-//#pragma region Instancing Deadpool Wave
-//
-//	translating.Translate = XMMatrixTranslation(0, 0, 0);
-//	translating.Scale = .05f;
-//	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
-//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-//	
-//	stride = sizeof(VERTEX);
-//	
-//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-//	g_pd3dDeviceContext->VSSetShader(DirectVertShader[2], NULL, NULL);
-//	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
-//	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
-//	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
-//	
-//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &DeadpoolInstanceVertexBuffer, &stride, &offsets);
-//	g_pd3dDeviceContext->IASetIndexBuffer(DeadpoolInstanceIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-//	
-//	if(DeadpoolInstanceIndexBuffer)
-//		g_pd3dDeviceContext->DrawInstanced(InstanceIndexCount, 4, 0, 0);
-//	
-//	translating.Translate = XMMatrixIdentity();
-//	translating.Scale = 1.0f;
-//	translating.Rotation = XMMatrixIdentity();
-//	WorldShader.worldMatrix = XMMatrixIdentity();
-//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-//	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-//	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-//	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
-//#pragma endregion
+void DEMO_APP::thirdViewPort()
+{
+	DXGI_SWAP_CHAIN_DESC _swapChainDesc;
+	g_pSwapChain->GetDesc(&_swapChainDesc);
 
-//#pragma region Drawing Tess. Triangle
-//
-//	translating.Translate = XMMatrixTranslation(3, 0, 0);
-//	translating.Scale = .3f;
-//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-//
-//	
-//	XMVECTOR DeadpoolPOS;
-//	DeadpoolPOS.m128_f32[0] = 3.0f;
-//	DeadpoolPOS.m128_f32[1] = TempXYZW.m128_f32[1];
-//	DeadpoolPOS.m128_f32[2] = 0.0f;
-//	
-//	float distance = calcdist(TempXYZW, DeadpoolPOS);
-//	
-//	TesselScale.scale.x = distance;
-//	
-//	stride = sizeof(VERTEX);
-//	offsets = 0;
-//	
-//	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-//	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
-//	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
-//	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-//	g_pd3dDeviceContext->VSSetShader(vertexShaderTriangle, NULL, NULL);
-//	g_pd3dDeviceContext->PSSetShader(pixelShaderTriangle, NULL, NULL);
-//	g_pd3dDeviceContext->HSSetShader(hullShaderTriangle, NULL, NULL);
-//	g_pd3dDeviceContext->DSSetShader(domainShaderTriangle, NULL, NULL);
-//	g_pd3dDeviceContext->RSSetState(RasterStateWireFrameTriangle);
-//	
-//	if(IndexBufferDeadpool)
-//		g_pd3dDeviceContext->Draw(DeadpoolIndexCount, 0);
-//
-//	ID3D11HullShader* temp1 = nullptr;
-//	ID3D11DomainShader* temp2 = nullptr;
-//	g_pd3dDeviceContext->HSSetShader(temp1, NULL, NULL);
-//	g_pd3dDeviceContext->DSSetShader(temp2, NULL, NULL);
-//	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
-//
-//	translating.Translate = XMMatrixTranslation(0, 0, 0);
-//	translating.Scale = 1;
-//	translating.Rotation = XMMatrixIdentity();
-//	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-//	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-//	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
-//
-//#pragma endregion
+	TimeWizard.Signal();
 
-#pragma region Drawing Text
+	float timer = (float)TimeWizard.TotalTime();
 
-	POINT CUR;
-	GetCursorPos(&CUR);
-	ScreenToClient(window, &CUR);
-	//RECT* dest;  //Rectangle(1, 2, 336, 127);
-	ID3D11Texture2D* x;
-	m_text->GetResource((ID3D11Resource**)&x);
-	D3D11_TEXTURE2D_DESC desc;
-	x->GetDesc(&desc);
-	
-	SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width/2, desc.Height/2);
-	
-	spritebatch->Begin();
-	spritebatch->SetViewport(g_DirectView);
-	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON)&0x1))
+	if (g_ScreenChanged)
 	{
-		sound->Play();
-			textureSwitch = !textureSwitch;
-			lightsToggle = true;
+		WorldShader.projectView = g_newProjection;
+		g_ScreenChanged = false;
 	}
-	if (!textureSwitch)
+
+	g_thirdDirectView.Width = _swapChainDesc.BufferDesc.Width * 0.5f;
+	g_thirdDirectView.Height = _swapChainDesc.BufferDesc.Height * 0.5f;
+	g_thirdDirectView.MinDepth = 0.0f;
+	g_thirdDirectView.MaxDepth = 1.0f;
+	g_thirdDirectView.TopLeftX = g_thirdDirectView.Width;
+	g_thirdDirectView.TopLeftY = g_thirdDirectView.Height;
+
+	//orientation of model
+	WorldShader.projectView = XMMatrixPerspectiveFovLH(XMConvertToRadians(60), g_thirdDirectView.Width / g_thirdDirectView.Height, ZNEAR, ZFAR);
+	//desc of camera
+	WorldShader.viewMatrix = XMMatrixInverse(NULL, m_viewMatrix);
+
+	g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
+	g_pd3dDeviceContext->RSSetViewports(1, &g_thirdDirectView);
+	g_pd3dDeviceContext->RSSetState(DefaultRasterState);
+
+	float temp[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	float BlendFactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	g_pd3dDeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
+
+	g_pd3dDeviceContext->PSSetShaderResources(0, 1, &SkyBoxShaderView);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
+	VRAMPixelShader.whichTexture = 0;
+
+	//Sending new worldMatrix, viewMatrix, projectionMatrix to videocard
+	D3D11_MAPPED_SUBRESOURCE m_mapSource;
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	//Sending new rotation, scale, translation to videocard
+	D3D11_MAPPED_SUBRESOURCE m_mapSource2;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	//Sending new texture details to videocard
+	D3D11_MAPPED_SUBRESOURCE m_mapSource1;
+	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+	//Sending NEW Light Info to VideoCard
+	D3D11_MAPPED_SUBRESOURCE LightSource;
+	g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSource);
+	memcpy_s(LightSource.pData, sizeof(Lights), &Lights, sizeof(Lights));
+	g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
+
+	//Sending instance data to the videocard
+	D3D11_MAPPED_SUBRESOURCE InstanceSource;
+	g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
+	memcpy_s(InstanceSource.pData, sizeof(Instance) * 4, &list, sizeof(Instance) * 4);
+	g_pd3dDeviceContext->Unmap(InstanceCostantBuffer, 0);
+
+	//Sending new scaling data for tesselation
+	D3D11_MAPPED_SUBRESOURCE SizingTesselSource;
+	g_pd3dDeviceContext->Map(CostantBufferTessScale, 0, D3D11_MAP_WRITE_DISCARD, 0, &SizingTesselSource);
+	memcpy_s(SizingTesselSource.pData, sizeof(Scaling), &TesselScale, sizeof(Scaling));
+	g_pd3dDeviceContext->Unmap(CostantBufferTessScale, 0);
+
+	g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer[0]);
+	g_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &constantBuffer[1]);
+	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &InstanceCostantBuffer);
+	g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &constantPixelBuffer);
+	g_pd3dDeviceContext->PSSetConstantBuffers(1, 1, &CostantBufferLights);
+	g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &constantBuffer[0]);
+	g_pd3dDeviceContext->DSSetConstantBuffers(1, 1, &constantBuffer[1]);
+	g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &CostantBufferTessScale);
+
+	unsigned int stride = 0;
+	unsigned int offsets = 0;
+
+#pragma region Drawing Skybox
+	translating.Translate.r[3] = m_viewMatrix.r[3];
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	stride = sizeof(VERTEX);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSkyBox, &stride, &offsets);
+
+	VRAMPixelShader.whichTexture = 0;
+
+	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+
+	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSkyBox, DXGI_FORMAT_R32_UINT, 0);
+	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	g_pd3dDeviceContext->PSSetSamplers(0, 1, &sampleTexture);
+
+	g_pd3dDeviceContext->RSSetState(SkyBoxRasterState);
+
+	g_pd3dDeviceContext->DrawIndexed(SkyBoxIndexCount, 0, 0);
+
+#pragma endregion End of Drawing Skybox
+
+	g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+#pragma region Drawing Star
+	translating.Translate = XMMatrixTranslation(-2, 0, 0);
+	translating.Scale = 1.0f;
+	WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
+	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
+
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(SIMPLE_VERTEX);
+	offsets = 0;
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferStar, &stride, &offsets);
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[1]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[1], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[1], NULL, NULL);
+
+	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferStar, DXGI_FORMAT_R32_UINT, 0);
+
+	g_pd3dDeviceContext->DrawIndexed(60, 0, 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	translating.Rotation = XMMatrixIdentity();
+	translating.Translate = XMMatrixIdentity();
+
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion End of Drawing Star
+
+#pragma region Drawing the LightSource
+	if (Lights[1].Radius.x == 1)
 	{
-		
-		spritebatch->Draw(m_text2, XMFLOAT2(100, 100), NULL, DirectX::Colors::Red, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
-	m_textFont->DrawString(spritebatch.get(), L"OFF", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
 
+		translating.Translate = XMMatrixTranslation(Lights[1].Position.x, Lights[1].Position.y, Lights[1].Position.z);
+		translating.Scale = .1f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
+
+		g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 	}
-	else if(textureSwitch)
-	{
-		spritebatch->Draw(m_text, XMFLOAT2(100, 100), NULL, DirectX::Colors::Green, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
-	m_textFont->DrawString(spritebatch.get(), L"ON", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
+#pragma endregion End of Drawing the LightSource
 
-	}
-	
-	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1),DirectX::Colors::DeepPink);
-	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
-	spritebatch->End();
-	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
-#pragma endregion
+#pragma region Drawing of Sword
+	translating.Translate = XMMatrixTranslation(-3, 3, 0);
+	translating.Scale = .05f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pSwapChain->Present(0, 0);
+	stride = sizeof(VERTEX);
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
 
-	return true; 
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &SwordShaderView);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &SwordNORMShaderView);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSword, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSword, DXGI_FORMAT_R32_UINT, 0);
+	if (IndexBufferSword)
+		g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);
+#pragma endregion End of Drawing Sword
+
+#pragma region Drawing the DeadPool
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Scale = .3f;
+	WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &DeadpoolShaderView);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &DeadpoolNORMShaderView);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferDeadpool, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferDeadpool, DXGI_FORMAT_R32_UINT, 0);
+	if (IndexBufferDeadpool)
+		g_pd3dDeviceContext->DrawIndexed(DeadpoolIndexCount, 0, 0);
+
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Rotation = XMMatrixIdentity();
+	translating.Scale = 1.0f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion End of Drawing the Deadpool
+
+#pragma region Drawing of BIND_POSE BOX
+	translating.Translate = XMMatrixTranslation(-2, 0, 0);
+	translating.Scale = 1.0f;
+	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &BindPoseVertex, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	if (BindPoseIndex)
+		g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
+
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Rotation = XMMatrixIdentity();
+	translating.Scale = 1.0f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion End of Drawing the BIND_POSE BOX
+
+#pragma region FBX Teddy
+	translating.Translate = XMMatrixTranslation(2, 0, 0);
+	translating.Scale = .025f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	if (TeddyPoseIndex)
+		g_pd3dDeviceContext->DrawIndexed(TeddyPoseIndexCount, 0, 0);
+
+	translating.Translate = XMMatrixTranslation(0, 0, 0);
+	translating.Rotation = XMMatrixIdentity();
+	translating.Scale = 1.0f;
+	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+
+	WorldShader.worldMatrix = XMMatrixIdentity();
+	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+#pragma endregion End of FBX Teddy
+
+#pragma region Drawing of the Floor
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &FloorShaderView);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &FloorNORMShaderView);
+
+	stride = sizeof(VERTEX);
+
+	if (ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 1;
+	else if (!ToggleBumpMap)
+		VRAMPixelShader.whichTexture = 2;
+
+	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
+	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferPlane, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferPlane, DXGI_FORMAT_R32_UINT, 0);
+
+	g_pd3dDeviceContext->RSSetState(SkyBoxRasterState);
+	g_pd3dDeviceContext->DrawIndexed(PlaneIndexCount, 0, 0);
+#pragma endregion End of Drawing the Floor
+
 }
 
 //************************************************************
