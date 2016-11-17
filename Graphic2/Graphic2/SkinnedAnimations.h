@@ -39,8 +39,9 @@ struct AnimationController
 
 	AnimationController()
 	{
-		CurrTime = 0;
+		CurrTime = 0.1f;
 		WhichAnimation = 0;
 	}
 	void Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[96]);
+	
 };

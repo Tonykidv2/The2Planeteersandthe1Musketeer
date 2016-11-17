@@ -179,7 +179,7 @@ class DEMO_APP
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
-	void CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
+	void CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, const char* oherAni,
 		unsigned int* IndexCount, AnimationController* skeleton);
 	ID3D11Buffer* BindPoseVertex = nullptr;
 	ID3D11Buffer* BindPoseIndex = nullptr;
@@ -830,7 +830,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//Directional Light
 	Lights[0].Position		= XMFLOAT4(0.0f, 0.0f, 0.0f, 1);
 	Lights[0].Direction		= XMFLOAT4(0.0f, -1.0f, 1.0f, 0.0f);
-	Lights[0].Color			= XMFLOAT4(0.8f, 0.8f, .8f, 1.0f);
+	Lights[0].Color			= XMFLOAT4(0.8f, 0.8f, .5f, 1.0f);
 	Lights[0].Radius		= XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
 	//Point Light
 	Lights[1].Position		= XMFLOAT4(-1.0f, 1.0f, 0.0f, 1.0f);
@@ -973,7 +973,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
 	//thread5.detach();
 
-	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &MagePoseVertex, &MagePoseIndex, g_pd3dDevice, "Walk.fbx", &MagePoseIndexCount, &MageAnimation);
+	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &MagePoseVertex, &MagePoseIndex, g_pd3dDevice, "Walk.fbx", "Run.fbx", &MagePoseIndexCount, &MageAnimation);
 	thread5.detach();
 	TimeWizard.Restart();
 
@@ -1270,14 +1270,14 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	norm_indices.clear();
 }
 
-void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
+void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, const char* otherAni,
 	unsigned int* IndexCount, AnimationController* skeleton)
 {
 	std::vector<SkinnedVertex> SkinVert;
 	Skeleton cSkeleton;
-
+	Skeleton dSkeleton;
 	LoadFBXDLLNEW(Path, SkinVert, cSkeleton);
-
+	LoadFBXDLLNEWANIM(otherAni, dSkeleton);
 	unsigned int* ModelIndices = new unsigned int[SkinVert.size()];
 
 	for (size_t i = 0; i < SkinVert.size(); i++)
@@ -1351,9 +1351,11 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 
 #pragma endregion
 	AnimationClip Clip;
-
+	AnimationClip Clip2;
 	size_t BoneCount = cSkeleton.m_Joints.size();
-	BoneAnimation* TeddyAni = new BoneAnimation[BoneCount];
+	size_t BoneCount2 = dSkeleton.m_Joints.size();
+	BoneAnimation* Ani = new BoneAnimation[BoneCount];
+	BoneAnimation* Ani2 = new BoneAnimation[BoneCount2];
 
 	for (int i = 0; i < BoneCount; i++)
 	{
@@ -1361,16 +1363,31 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 		walker = cSkeleton.m_Joints[i].m_Animation;
 		while (walker)
 		{
-			TeddyAni[i].Keyframes.push_back(walker);
+			Ani[i].Keyframes.push_back(walker);
 			walker = walker->m_Next;
 		}
 	}
-
+	for (int i = 0; i < BoneCount2; i++)
+	{
+		KeyFrame* walker;
+		walker = dSkeleton.m_Joints[i].m_Animation;
+		while (walker)
+		{
+			Ani2[i].Keyframes.push_back(walker);
+			walker = walker->m_Next;
+		}
+	}
 	for (size_t i = 0; i < BoneCount; i++)
 	{
-		Clip.BoneAnimations.push_back(&TeddyAni[i]);
+		Clip.BoneAnimations.push_back(&Ani[i]);
+	}
+	for (size_t i = 0; i < BoneCount2; i++)
+	{
+		Clip2.BoneAnimations.push_back(&Ani2[i]);
 	}
 	skeleton->Anim.push_back(Clip);
+	skeleton->Anim.push_back(Clip2);
+
 	animationdone = true;
 	*IndexCount = (unsigned int)SkinVert.size();
 	delete[] ModelIndices;
@@ -1986,7 +2003,8 @@ bool DEMO_APP::Run()
 #pragma region Drawing FBX Mage Walk
 	translating.Translate = XMMatrixTranslation(2, 0, 0);
 	translating.Scale = .5f;
-	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	//translating.Rotation = XMMatrixRotationY(timer * 2.0f);
+	WorldShader.worldMatrix = XMMatrixRotationY(-timer * 0.5f);
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
@@ -2015,7 +2033,7 @@ bool DEMO_APP::Run()
 	if (MagePoseIndex)
 	{
 		if (animationdone)
-			MageAnimation.Update((float)TimeWizard.Delta() * 5, &MageSkeleton.JointPostion);
+			MageAnimation.Update((float)TimeWizard.Delta() * 10, &MageSkeleton.JointPostion);
 		D3D11_MAPPED_SUBRESOURCE MageSkeleton_Map;
 		g_pd3dDeviceContext->Map(MageSkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MageSkeleton_Map);
 		memcpy_s(MageSkeleton_Map.pData, sizeof(cBufferSkeleton), MageSkeleton.JointPostion, sizeof(cBufferSkeleton));

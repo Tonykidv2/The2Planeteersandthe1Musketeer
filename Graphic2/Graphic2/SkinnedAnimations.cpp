@@ -105,11 +105,16 @@ void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[96
 
 void AnimationController::Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[96])
 {
-
+	if (GetAsyncKeyState(VK_NUMPAD0) & 0x1)
+	{
+		WhichAnimation++;
+		if (WhichAnimation > Anim.size() - 1)
+			WhichAnimation = 0;
+	}
 	CurrTime += _dt;
 
 	if (CurrTime >= Anim[WhichAnimation].GetClipEndTime())
-		CurrTime = 0.0f;
+		CurrTime = 0.97f;
 
 	Anim[WhichAnimation].Interpolate(CurrTime, boneTransforms);
 }

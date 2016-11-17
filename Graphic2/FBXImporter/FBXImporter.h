@@ -39,3 +39,5 @@ extern "C" __declspec(dllexport) void ReadFBXDLLfromBinary(const char * path, st
 	std::vector<DirectX::XMFLOAT3>& out_Tangets);
 
 extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vector<SkinnedVertex>& outVertices, Skeleton& outSkeleton);
+
+extern "C" __declspec(dllexport) bool LoadFBXDLLNEWANIM(const char* path, Skeleton& outSkeleton);

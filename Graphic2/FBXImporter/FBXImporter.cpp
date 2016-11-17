@@ -325,10 +325,10 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 		return false;
 
 
-	FBXExporter bob;
-	bob.m_Scene = pFbxScene;
+	FBXExporter FirstAnim;
+	FirstAnim.m_Scene = pFbxScene;
 	FbxNode* rootNode = pFbxScene->GetRootNode();
-	bob.ProcessSkeletonHeirarchy(rootNode);
+	FirstAnim.ProcessSkeletonHeirarchy(rootNode);
 
 	if (rootNode)
 	{
@@ -343,33 +343,82 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 			if (AttributeType != FbxNodeAttribute::eMesh)
 				continue;
 
-			bob.ProcessGeometry(pFbxChildNode);
+			FirstAnim.ProcessGeometry(pFbxChildNode);
 			
 			SkinnedVertex vertice;
 			
-			for (size_t i = 0; i < bob.m_Vertices.size(); i++)
+			for (size_t i = 0; i < FirstAnim.m_Vertices.size(); i++)
 			{
-				vertice.m_Positon = bob.m_Vertices[i].m_Position;
+				vertice.m_Positon = FirstAnim.m_Vertices[i].m_Position;
 				vertice.m_Positon.x = vertice.m_Positon.x;
-				vertice.m_Normal = bob.m_Vertices[i].m_Normal;
+				vertice.m_Normal = FirstAnim.m_Vertices[i].m_Normal;
 				vertice.m_Normal.x = vertice.m_Normal.x;
-				vertice.m_UV = bob.m_Vertices[i].m_UV;
+				vertice.m_UV = FirstAnim.m_Vertices[i].m_UV;
 				
 				for (size_t j = 0; j < 4; j++)
-					vertice.m_JointIndex[j] = bob.m_Vertices[i].m_VertexBlendingInfos[j].m_BlendingIndex;
+					vertice.m_JointIndex[j] = FirstAnim.m_Vertices[i].m_VertexBlendingInfos[j].m_BlendingIndex;
 
-				vertice.m_JointWeight.x = (float)bob.m_Vertices[i].m_VertexBlendingInfos[0].m_BlendingWeight;
-				vertice.m_JointWeight.y = (float)bob.m_Vertices[i].m_VertexBlendingInfos[1].m_BlendingWeight;
-				vertice.m_JointWeight.z = (float)bob.m_Vertices[i].m_VertexBlendingInfos[2].m_BlendingWeight;
+				vertice.m_JointWeight.x = (float)FirstAnim.m_Vertices[i].m_VertexBlendingInfos[0].m_BlendingWeight;
+				vertice.m_JointWeight.y = (float)FirstAnim.m_Vertices[i].m_VertexBlendingInfos[1].m_BlendingWeight;
+				vertice.m_JointWeight.z = (float)FirstAnim.m_Vertices[i].m_VertexBlendingInfos[2].m_BlendingWeight;
 
 				outVertices.push_back(vertice);
 			}
-			outSkeleton = bob.m_Skeleton;
-
-
+			outSkeleton = FirstAnim.m_Skeleton;
 
 		}
 	}
+	return true;
+}
+
+extern "C" __declspec(dllexport) bool LoadFBXDLLNEWANIM(const char* path, Skeleton& outSkeleton)
+{
+	int check = 0;
+	FbxManager* g_pFbxManager = nullptr;
+
+	if (g_pFbxManager == nullptr)
+	{
+		g_pFbxManager = FbxManager::Create();
+
+		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+		g_pFbxManager->SetIOSettings(pIOsettings);
+	}
+
+	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
+	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
+
+	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+
+	if (!Successs)
+		return false;
+
+	Successs = pImporter->Import(pFbxScene);
+	if (!Successs)
+		return false;
+
+
+	FBXExporter FirstAnim;
+	FirstAnim.m_Scene = pFbxScene;
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+	FirstAnim.ProcessSkeletonHeirarchy(rootNode);
+	if (rootNode)
+	{
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+		{
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
+			if (pFbxChildNode->GetNodeAttribute() == NULL)
+				continue;
+
+			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+			if (AttributeType != FbxNodeAttribute::eMesh)
+				continue;
+
+			FirstAnim.ProcessGeometry(pFbxChildNode);
+			outSkeleton = FirstAnim.m_Skeleton;
+		}
+	}
+
 	return true;
 }
 
