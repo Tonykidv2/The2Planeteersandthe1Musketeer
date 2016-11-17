@@ -188,16 +188,16 @@ class DEMO_APP
 	unsigned BindPoseIndexCount;
 	DEMO_APP() {}
 	
-	ID3D11Buffer* TeddyPoseVertex = nullptr;
-	ID3D11Buffer* TeddyPoseIndex = nullptr;
-	ID3D11ShaderResourceView* TeddyPoseTexture = nullptr;
-	ID3D11ShaderResourceView* TeddyPoseNormTexture = nullptr;
-	unsigned TeddyPoseIndexCount;
-	cBufferSkeleton TeddySkeleton;
+	ID3D11Buffer* MagePoseVertex = nullptr;
+	ID3D11Buffer* MagePoseIndex = nullptr;
+	ID3D11ShaderResourceView* MagePoseTexture = nullptr;
+	ID3D11ShaderResourceView* MagePoseNormTexture = nullptr;
+	unsigned MagePoseIndexCount;
+	cBufferSkeleton MageSkeleton;
 	ID3D11VertexShader* SkinningShader = nullptr;
 	ID3D11InputLayout* SkinningVertexLayout = nullptr;
-	ID3D11Buffer* TeddySkeleonBuffer = nullptr;
-	AnimationController TeddyAnimation;
+	ID3D11Buffer* MageSkeleonBuffer = nullptr;
+	AnimationController MageAnimation;
 
 public:
 
@@ -691,7 +691,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	SkinningDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	SkinningDesc.ByteWidth = sizeof(cBufferSkeleton);
 	SkinningDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	g_pd3dDevice->CreateBuffer(&SkinningDesc, NULL, &TeddySkeleonBuffer);
+	g_pd3dDevice->CreateBuffer(&SkinningDesc, NULL, &MageSkeleonBuffer);
 
 	D3D11_BUFFER_DESC TesselDesc;
 	ZeroMemory(&TesselDesc, sizeof(TesselDesc));
@@ -775,8 +775,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	CreateDDSTextureFromFile(g_pd3dDevice, L"DeadpoolSword_Normal.dds", NULL, &SwordNORMShaderView);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"TestCube.dds", NULL, &BindPoseTexture);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"NormBindPoseTexture.dds", NULL, &BindPoseNormTexture);
-	CreateDDSTextureFromFile(g_pd3dDevice, L"Teddy_D.dds", NULL, &TeddyPoseTexture);
-	CreateDDSTextureFromFile(g_pd3dDevice, L"Teddy_Norm.dds", NULL, &TeddyPoseNormTexture);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"PPG.dds", NULL, &MagePoseTexture);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"PPG_N.dds", NULL, &MagePoseNormTexture);
 #pragma endregion
 
 #pragma region Sampler
@@ -973,7 +973,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
 	//thread5.detach();
 
-	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.fbx", &TeddyPoseIndexCount, &TeddyAnimation);
+	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &MagePoseVertex, &MagePoseIndex, g_pd3dDevice, "Walk.fbx", &MagePoseIndexCount, &MageAnimation);
 	thread5.detach();
 	TimeWizard.Restart();
 
@@ -1352,7 +1352,7 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 #pragma endregion
 	AnimationClip Clip;
 
-	int BoneCount = cSkeleton.m_Joints.size();
+	size_t BoneCount = cSkeleton.m_Joints.size();
 	BoneAnimation* TeddyAni = new BoneAnimation[BoneCount];
 
 	for (int i = 0; i < BoneCount; i++)
@@ -1791,43 +1791,43 @@ bool DEMO_APP::Run()
 
 #pragma region Drawing Star
 
-	translating.Translate = XMMatrixTranslation(-2, 0, 0);
-	translating.Scale = 1.0f;
-	//WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
-	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
+	//translating.Translate = XMMatrixTranslation(-2, 0, 0);
+	//translating.Scale = 1.0f;
+	////WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
+	//translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
 
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+	//g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	//memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+	//g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	//memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
-	stride = sizeof(SIMPLE_VERTEX);
-	offsets = 0;
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferStar, &stride, &offsets);
+	//stride = sizeof(SIMPLE_VERTEX);
+	//offsets = 0;
+	//g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferStar, &stride, &offsets);
 
-	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[1]);
-	g_pd3dDeviceContext->VSSetShader(DirectVertShader[1], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShader(DirectPixShader[1], NULL, NULL);
+	//g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[1]);
+	//g_pd3dDeviceContext->VSSetShader(DirectVertShader[1], NULL, NULL);
+	//g_pd3dDeviceContext->PSSetShader(DirectPixShader[1], NULL, NULL);
 
-	g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferStar, DXGI_FORMAT_R32_UINT, 0);
+	//g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferStar, DXGI_FORMAT_R32_UINT, 0);
 
-	g_pd3dDeviceContext->DrawIndexed(60, 0, 0);
+	//g_pd3dDeviceContext->DrawIndexed(60, 0, 0);
 
-	WorldShader.worldMatrix = XMMatrixIdentity();
-	translating.Rotation = XMMatrixIdentity();
-	translating.Translate = XMMatrixIdentity();
+	//WorldShader.worldMatrix = XMMatrixIdentity();
+	//translating.Rotation = XMMatrixIdentity();
+	//translating.Translate = XMMatrixIdentity();
 
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+	//g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	//memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+	//g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	//memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
 #pragma endregion
 
@@ -1835,30 +1835,37 @@ bool DEMO_APP::Run()
 
 	if (Lights[1].Radius.x == 1)
 	{
+		stride = sizeof(SIMPLE_VERTEX);
 
 		translating.Translate = XMMatrixTranslation(Lights[1].Position.x, Lights[1].Position.y, Lights[1].Position.z);
-	translating.Scale = .1f;
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		translating.Scale = .1f;
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
 
-	g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
+		g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[1]);
+		g_pd3dDeviceContext->VSSetShader(DirectVertShader[1], NULL, NULL);
+		g_pd3dDeviceContext->PSSetShader(DirectPixShader[1], NULL, NULL);
 
-	translating.Translate = XMMatrixTranslation(0, 0, 0);
+		g_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSource, &stride, &offsets);
+		g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSource, DXGI_FORMAT_R32_UINT, 0);
 
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+		g_pd3dDeviceContext->DrawIndexed(SourceIndexCount, 0, 0);
+
+		translating.Translate = XMMatrixTranslation(0, 0, 0);
+
+		g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 	}
 
 #pragma endregion
 
 #pragma region DrawingSword
 
-	translating.Translate = XMMatrixTranslation(-3, 3, 0);
+	/*translating.Translate = XMMatrixTranslation(-3, 3, 0);
 	translating.Scale = .05f;
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
@@ -1881,7 +1888,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &VertexBufferSword, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(IndexBufferSword, DXGI_FORMAT_R32_UINT, 0);
 	if(IndexBufferSword)
-	 g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);
+		g_pd3dDeviceContext->DrawIndexed(SwordIndexCount, 0, 0);*/
 
 #pragma endregion
 
@@ -1905,6 +1912,10 @@ bool DEMO_APP::Run()
 	else if (!ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 2;
 
+	g_pd3dDeviceContext->Map(constantPixelBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource1);
+	memcpy_s(m_mapSource1.pData, sizeof(SEND_TO_VRAM_PIXEL), &VRAMPixelShader, sizeof(SEND_TO_VRAM_PIXEL));
+	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
+
 	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
 	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
 	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
@@ -1918,6 +1929,7 @@ bool DEMO_APP::Run()
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();
 	translating.Scale = 1.0f;
+
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
@@ -1930,50 +1942,50 @@ bool DEMO_APP::Run()
 #pragma endregion
 
 #pragma region Drawing FBX BIND-POSE Box
-	translating.Translate = XMMatrixTranslation(-2, 0, 0);
-	translating.Scale = 1.0f;
-	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+	//translating.Translate = XMMatrixTranslation(-2, 0, 0);
+	//translating.Scale = 1.0f;
+	////WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
+	//g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	//memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+	//g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	//memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
-	stride = sizeof(VERTEX);
+	//stride = sizeof(VERTEX);
 
-	if (ToggleBumpMap)
-		VRAMPixelShader.whichTexture = 1;
-	else if (!ToggleBumpMap)
-		VRAMPixelShader.whichTexture = 2;
+	//if (ToggleBumpMap)
+	//	VRAMPixelShader.whichTexture = 1;
+	//else if (!ToggleBumpMap)
+	//	VRAMPixelShader.whichTexture = 2;
 
-	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
-	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &BindPoseVertex, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
-	if (BindPoseIndex)
-		g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
-		//g_pd3dDeviceContext->Draw(BindPoseIndexCount, 0);
-	translating.Translate = XMMatrixTranslation(0, 0, 0);
-	translating.Rotation = XMMatrixIdentity();
-	translating.Scale = 1.0f;
-	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
-	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
-	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
+	//g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
+	//g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	//g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
+	//g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
+	//g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
+	//g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &BindPoseVertex, &stride, &offsets);
+	//g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	//if (BindPoseIndex)
+	//	g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
+	//	//g_pd3dDeviceContext->Draw(BindPoseIndexCount, 0);
+	//translating.Translate = XMMatrixTranslation(0, 0, 0);
+	//translating.Rotation = XMMatrixIdentity();
+	//translating.Scale = 1.0f;
+	//g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
+	//memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 
-	WorldShader.worldMatrix = XMMatrixIdentity();
-	g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
-	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
-	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
+	//WorldShader.worldMatrix = XMMatrixIdentity();
+	//g_pd3dDeviceContext->Map(constantBuffer[0], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource);
+	//memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
+	//g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 #pragma endregion
 
-#pragma region Drawing FBX Teddy-POSE Box
+#pragma region Drawing FBX Mage Walk
 	translating.Translate = XMMatrixTranslation(2, 0, 0);
-	translating.Scale = 1.0f;
+	translating.Scale = .5f;
 	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
@@ -1995,20 +2007,20 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->IASetInputLayout(SkinningVertexLayout);
 	g_pd3dDeviceContext->VSSetShader(SkinningShader, NULL, NULL);
 	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
-	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &TeddySkeleonBuffer);
-	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
-	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
-	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
-	g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
-	if (TeddyPoseIndex)
+	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &MageSkeleonBuffer);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &MagePoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &MagePoseNormTexture);
+	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &MagePoseVertex, &stride, &offsets);
+	g_pd3dDeviceContext->IASetIndexBuffer(MagePoseIndex, DXGI_FORMAT_R32_UINT, 0);
+	if (MagePoseIndex)
 	{
 		if (animationdone)
-			TeddyAnimation.Update((float)TimeWizard.Delta() * 2, &TeddySkeleton.JointPostion);
-		D3D11_MAPPED_SUBRESOURCE TeddySkeleton_Map;
-		g_pd3dDeviceContext->Map(TeddySkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &TeddySkeleton_Map);
-		memcpy_s(TeddySkeleton_Map.pData, sizeof(cBufferSkeleton), TeddySkeleton.JointPostion, sizeof(cBufferSkeleton));
-		g_pd3dDeviceContext->Unmap(TeddySkeleonBuffer, 0);
-		g_pd3dDeviceContext->DrawIndexed(TeddyPoseIndexCount, 0, 0);
+			MageAnimation.Update((float)TimeWizard.Delta() * 5, &MageSkeleton.JointPostion);
+		D3D11_MAPPED_SUBRESOURCE MageSkeleton_Map;
+		g_pd3dDeviceContext->Map(MageSkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MageSkeleton_Map);
+		memcpy_s(MageSkeleton_Map.pData, sizeof(cBufferSkeleton), MageSkeleton.JointPostion, sizeof(cBufferSkeleton));
+		g_pd3dDeviceContext->Unmap(MageSkeleonBuffer, 0);
+		g_pd3dDeviceContext->DrawIndexed(MagePoseIndexCount, 0, 0);
 	}
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();
@@ -2284,20 +2296,20 @@ void DEMO_APP::Clean3d()
 	BindPoseNormTexture->Release();
 	
 
-	if(TeddyPoseVertex)
-		TeddyPoseVertex->Release();
-	if(TeddyPoseIndex)
-		TeddyPoseIndex->Release();
-	if(TeddyPoseTexture)
-		TeddyPoseTexture->Release();
-	if(TeddyPoseNormTexture)
-		TeddyPoseNormTexture->Release();
+	if(MagePoseVertex)
+		MagePoseVertex->Release();
+	if(MagePoseIndex)
+		MagePoseIndex->Release();
+	if(MagePoseTexture)
+		MagePoseTexture->Release();
+	if(MagePoseNormTexture)
+		MagePoseNormTexture->Release();
 	if(SkinningShader)
 		SkinningShader->Release();
 	if(SkinningVertexLayout)
 		SkinningVertexLayout->Release();
-	if (TeddySkeleonBuffer)
-		TeddySkeleonBuffer->Release();
+	if (MageSkeleonBuffer)
+		MageSkeleonBuffer->Release();
 	//////AAron////////
 	m_text->Release();
 	m_text2->Release();

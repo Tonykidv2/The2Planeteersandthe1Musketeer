@@ -358,9 +358,9 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 				for (size_t j = 0; j < 4; j++)
 					vertice.m_JointIndex[j] = bob.m_Vertices[i].m_VertexBlendingInfos[j].m_BlendingIndex;
 
-				vertice.m_JointWeight.x = bob.m_Vertices[i].m_VertexBlendingInfos[0].m_BlendingWeight;
-				vertice.m_JointWeight.y = bob.m_Vertices[i].m_VertexBlendingInfos[1].m_BlendingWeight;
-				vertice.m_JointWeight.z = bob.m_Vertices[i].m_VertexBlendingInfos[2].m_BlendingWeight;
+				vertice.m_JointWeight.x = (float)bob.m_Vertices[i].m_VertexBlendingInfos[0].m_BlendingWeight;
+				vertice.m_JointWeight.y = (float)bob.m_Vertices[i].m_VertexBlendingInfos[1].m_BlendingWeight;
+				vertice.m_JointWeight.z = (float)bob.m_Vertices[i].m_VertexBlendingInfos[2].m_BlendingWeight;
 
 				outVertices.push_back(vertice);
 			}
@@ -370,7 +370,7 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 
 		}
 	}
-
+	return true;
 }
 
 extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts, DirectX::XMFLOAT3 uv, DirectX::XMFLOAT3 norm)
@@ -465,7 +465,7 @@ void FBXExporter::ProcessSkeletonHeirarchyRecursively(FbxNode* m_Node, int m_Dep
 	}
 	for (int i = 0; i < m_Node->GetChildCount(); i++)
 	{
-		ProcessSkeletonHeirarchyRecursively(m_Node->GetChild(i), m_Depth + 1, m_Skeleton.m_Joints.size(), myIndex);
+		ProcessSkeletonHeirarchyRecursively(m_Node->GetChild(i), m_Depth + 1, (int)m_Skeleton.m_Joints.size(), myIndex);
 	}
 }
 
@@ -525,6 +525,7 @@ void FBXExporter::ProcessJointsAndAnimations(FbxNode* m_Node)
 			for (int i = 0; i < 4; i++)
 				for (int j = 0; j < 4; j++)
 					m_Skeleton.m_Joints[currentJointIndex].m_GlobalBindPoseInverse.m[i][j] = static_cast<float>(globalBindposeInverseMatrix.mData[i][j]);
+					//m_Skeleton.m_Joints[currentJointIndex].m_GlobalBindPoseInverse.m[i][j] = static_cast<float>(transformLinkMatrix.mData[i][j]);
 					//m_Skeleton.m_Joints[currentJointIndex].m_Node = currentCluster->GetLink();
 
 
@@ -553,9 +554,9 @@ void FBXExporter::ProcessJointsAndAnimations(FbxNode* m_Node)
 				FbxTime currentTime;
 				currentTime.SetFrame(i, FbxTime::eFrames24);
 				*currentAnimation = new KeyFrame();
-				(*currentAnimation)->m_FrameNum = i;
+				(*currentAnimation)->m_FrameNum = static_cast<float>(i);
 				FbxAMatrix currentTransformOffset = m_Node->EvaluateGlobalTransform(currentTime) * geometryTransform;
-				currentTransformOffset = currentTransformOffset.Inverse() *  currentCluster->GetLink()->EvaluateGlobalTransform(currentTime);
+				currentTransformOffset = currentTransformOffset.Inverse() * currentCluster->GetLink()->EvaluateGlobalTransform(currentTime) * globalBindposeInverseMatrix;
 
 				//(*currentAnimation)->m_GlobalTransform = currentTransformOffset;
 				for (int i = 0; i < 4; i++)
@@ -587,7 +588,7 @@ void FBXExporter::ProcessJointsAndAnimations(FbxNode* m_Node)
 	currentBlendingIndexWeightpair.m_BlendingWeight = 0;
 	for (auto itr = m_ControlPoints.begin(); itr != m_ControlPoints.end(); itr++)
 	{
-		for (unsigned int i = itr->second->m_BlendingInfo.size(); i <= 4; i++)
+		for (size_t i = itr->second->m_BlendingInfo.size(); i <= 4; i++)
 		{
 			itr->second->m_BlendingInfo.push_back(currentBlendingIndexWeightpair);
 		}
@@ -631,7 +632,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 		{
 			int index = vertexUV->GetIndexArray().GetAt(m_CtrlPointIndex);
 			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
-			outUV.y = 1.0 -static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
+			outUV.y = 1.0f -static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
 		}
 			break;
 
