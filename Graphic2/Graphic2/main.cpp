@@ -1536,7 +1536,7 @@ bool DEMO_APP::Run()
 		m_viewMatrix = XMMatrixMultiply(m_viewMatrix, C);
 	}
 
-	if (GetAsyncKeyState(VK_SPACE) & 0x1)
+	if (GetAsyncKeyState(VK_NUMPAD7) & 0x1)
 	{
 		bSplitScreen = !bSplitScreen;
 	}
@@ -1588,7 +1588,7 @@ bool DEMO_APP::Run()
 
 #pragma endregion
 
-	if (bSplitScreen == false && !GetAsyncKeyState(VK_SPACE))
+	if (bSplitScreen == false && !GetAsyncKeyState(VK_NUMPAD7))
 	{
 #pragma region Updating Video Buffers
 		//Sending NEW worldMARIX, viewMatrix, projectionMATRIX to videocard
@@ -2129,7 +2129,7 @@ void DEMO_APP::secondViewPort()
 	g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSource);
 	memcpy_s(LightSource.pData, sizeof(Lights), &Lights, sizeof(Lights));
 	g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
-	
+
 	//Sending instance data to the videocard
 	D3D11_MAPPED_SUBRESOURCE InstanceSource;
 	g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
@@ -2611,89 +2611,6 @@ void DEMO_APP::thirdViewPort()
 		memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 		g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
 	}
-	
-	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1),DirectX::Colors::DeepPink);
-	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
-#pragma region TextBox
-	spritebatch->Draw(m_textbox, XMFLOAT2(5, 400), NULL, DirectX::Colors::White);
-	if ( GetAsyncKeyState(VK_LSHIFT) & 0x1)
-	{
-		textControls = !textControls;
-	}
-	
-	if (textControls)
-	{
-		if (GetAsyncKeyState(VK_DELETE) & 0x1)
-		{
-			if (GetAsyncKeyState(VK_LSHIFT) & 0X1)
-			{
-				textControls = false;
-				ClearInput();
-			}
-			else
-			ClearInput();
-		}
-		
-		if(currentLine==0&&(wcscmp(lines[currentLine].text, L"")==0))
-			lines[currentLine].text = L"Press Left Shift";
-		if (GetAsyncKeyState(VK_BACK) & 0x1)
-		{
-			if(!words[currentLine].empty())
-			words[currentLine].pop_back();
-			else if (words[currentLine].empty())
-				words[currentLine] = L"Press Left Shift";
-			if (currentLine != 0 && (wcscmp(words[currentLine].c_str(), L"") == 0||currentLine>=13))
-			{
-				currentLine--;
-				words[currentLine].pop_back();
-				lines[currentLine].check = false;
-			}
-		}
-			if (words[currentLine].size() > 18&&currentLine<13)
-			{
-				
-				
-			GetInputTextBox(words[currentLine]);
-			//lines[currentLine].text = words[currentLine].c_str();
-			lines[currentLine].check=true;
-				currentLine++;
-			}
-			else
-			{
-				if (currentLine < 13)
-				{
-					if (words[currentLine].size() <= 18)
-					{
-						GetInputTextBox(words[currentLine]);
-						lines[currentLine].text = words[currentLine].c_str();
-					}
-				}
-			}
-		
-	}
-	for (size_t i = 0; i < lines.size(); i++)
-	{
-		if (currentLine > 13)
-			currentLine = 13;
-		if (lines[i].check)
-		{
-			m_textFont->DrawString(spritebatch.get(), lines[i].text, lines[i].pos, DirectX::Colors::Black);
-
-		}
-		else
-		{
-			if (wcscmp( lines[i].text,L"Press Left Shift")==0)
-				break;
-			m_textFont->DrawString(spritebatch.get(), lines[currentLine].text, lines[i].pos, DirectX::Colors::Black);
-			break;
-		}
-	}
-	
-#pragma endregion
-	spritebatch->End();
-	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
-#pragma endregion
 #pragma endregion End of Drawing the LightSource
 
 #pragma region Drawing of Sword
