@@ -71,6 +71,8 @@ float AnimationClip::GetClipStartTime()const
 	float t = FLT_MAX;
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
+		if (BoneAnimations[i]->Keyframes.size() == 0)
+			continue;
 		t = min(t, BoneAnimations[i]->GetStartTime());
 	}
 
@@ -83,6 +85,8 @@ float AnimationClip::GetClipEndTime()const
 	float t = 0.0f;
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
+		if (BoneAnimations[i]->Keyframes.size() == 0)
+			continue;
 		t = max(t, BoneAnimations[i]->GetEndTime());
 	}
 
@@ -93,6 +97,8 @@ void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[96
 {
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
+		if (BoneAnimations[i]->Keyframes.size() == 0)
+			continue;
 		BoneAnimations[i]->Interpolate(t, (*boneTransforms)[i]);
 	}
 }

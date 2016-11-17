@@ -197,8 +197,8 @@ class DEMO_APP
 	ID3D11VertexShader* SkinningShader = nullptr;
 	ID3D11InputLayout* SkinningVertexLayout = nullptr;
 	ID3D11Buffer* TeddySkeleonBuffer = nullptr;
-	AnimationController BoxAnimation;
-	float timePOS = 0;
+	AnimationController TeddyAnimation;
+
 public:
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -972,8 +972,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//thread4.join();
 	//thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
 	//thread5.detach();
-	Skeleton skel;
-	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Box_Attack.fbx", &TeddyPoseIndexCount, &BoxAnimation);
+
+	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.fbx", &TeddyPoseIndexCount, &TeddyAnimation);
 	thread5.detach();
 	TimeWizard.Restart();
 
@@ -1466,12 +1466,7 @@ DEMO_APP * DEMO_APP::GetInstance()
 bool DEMO_APP::Run()
 {
 	TimeWizard.Signal();
-	/*timePOS += (float)TimeWizard.SmoothDelta();
-	if (animationdone)
-		BoxAnimation.Interpolate(timePOS, &TeddySkeleton.JointPostion);*/
-	/*if (animationdone)
-		BoxAnimation.Update((float)TimeWizard.Delta(), &TeddySkeleton.JointPostion);*/
-
+	
 	float timer = (float)TimeWizard.TotalTime();
 
 	if (g_ScreenChanged)
@@ -1798,7 +1793,7 @@ bool DEMO_APP::Run()
 
 	translating.Translate = XMMatrixTranslation(-2, 0, 0);
 	translating.Scale = 1.0f;
-	WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
+	//WorldShader.worldMatrix = XMMatrixMultiply(XMMatrixRotationY(timer), WorldShader.worldMatrix);
 	translating.Rotation = XMMatrixMultiply(XMMatrixRotationY(timer * 5), translating.Rotation);
 
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
@@ -2001,14 +1996,14 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->VSSetShader(SkinningShader, NULL, NULL);
 	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
 	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &TeddySkeleonBuffer);
-	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
-	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
 	if (TeddyPoseIndex)
 	{
 		if (animationdone)
-			BoxAnimation.Update((float)TimeWizard.Delta() * 2, &TeddySkeleton.JointPostion);
+			TeddyAnimation.Update((float)TimeWizard.Delta() * 2, &TeddySkeleton.JointPostion);
 		D3D11_MAPPED_SUBRESOURCE TeddySkeleton_Map;
 		g_pd3dDeviceContext->Map(TeddySkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &TeddySkeleton_Map);
 		memcpy_s(TeddySkeleton_Map.pData, sizeof(cBufferSkeleton), TeddySkeleton.JointPostion, sizeof(cBufferSkeleton));

@@ -47,6 +47,11 @@ cbuffer Skeleton : register(b2)
 
 OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 {
+    float4x4 scaling = float4x4(Scale, 0.0f, 0.0f, 0.0f,
+								0.0f, Scale, 0.0f, 0.0f,
+								0.0f, 0.0f, Scale, 0.0f,
+								0.0f, 0.0f, 0.0f, 1.0f);
+
 
     float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     weights[0] = fromVertexBuffer.JointWeights.x;
@@ -58,10 +63,10 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
     float3 normalL = float3(0.0f, 0.0f, 0.0f);
     float3 tangentL = float3(0.0f, 0.0f, 0.0f);
     
-    posL += weights[0] * mul(float4(fromVertexBuffer.pos, 1.0), bonesTrans[fromVertexBuffer.JointIndice[0]]).xyz;
-    posL += weights[1] * mul(float4(fromVertexBuffer.pos, 1.0), bonesTrans[fromVertexBuffer.JointIndice[1]]).xyz;
-    posL += weights[2] * mul(float4(fromVertexBuffer.pos, 1.0), bonesTrans[fromVertexBuffer.JointIndice[2]]).xyz;
-    posL += weights[3] * mul(float4(fromVertexBuffer.pos, 1.0), bonesTrans[fromVertexBuffer.JointIndice[3]]).xyz;
+    posL += weights[0] * mul(float4(fromVertexBuffer.pos, 1.0), mul(bonesTrans[fromVertexBuffer.JointIndice[0]], scaling)).xyz;
+    posL += weights[1] * mul(float4(fromVertexBuffer.pos, 1.0), mul(bonesTrans[fromVertexBuffer.JointIndice[1]], scaling)).xyz;
+    posL += weights[2] * mul(float4(fromVertexBuffer.pos, 1.0), mul(bonesTrans[fromVertexBuffer.JointIndice[2]], scaling)).xyz;
+    posL += weights[3] * mul(float4(fromVertexBuffer.pos, 1.0), mul(bonesTrans[fromVertexBuffer.JointIndice[3]], scaling)).xyz;
     
     normalL += weights[0] * mul(fromVertexBuffer.normal, (float3x3) bonesTrans[fromVertexBuffer.JointIndice[0]]);
     normalL += weights[1] * mul(fromVertexBuffer.normal, (float3x3) bonesTrans[fromVertexBuffer.JointIndice[1]]);
@@ -88,7 +93,7 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 								0.0f, 0.0f, Scale, 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f);
 
-    sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, scales);
+    //sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, scales);
     sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, Rotation);
     sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, Translate);
 
