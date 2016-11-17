@@ -39,6 +39,7 @@ struct PNTIWVertex
 	DirectX::XMFLOAT3 m_Position;
 	DirectX::XMFLOAT3 m_Normal;
 	DirectX::XMFLOAT2 m_UV;
+	DirectX::XMFLOAT3 m_Tangent;
 	std::vector<VertexBlendingInfo> m_VertexBlendingInfos;
 
 	void SortBlendingInfoByWeight()
@@ -67,5 +68,30 @@ struct PNTIWVertex
 		bool result3 = MathHelper::CompareVector2WithEpsilon(m_UV, rhs.m_UV);
 
 		return result1 && result2 && result3 && sameBlendingInfo;
+	}
+};
+
+struct SkinnedVertex
+{
+	DirectX::XMFLOAT3 m_Positon;
+	DirectX::XMFLOAT3 m_Normal;
+	DirectX::XMFLOAT2 m_UV;
+	DirectX::XMFLOAT3 m_Tangent;
+	DirectX::XMFLOAT3 m_JointWeight;
+	unsigned int m_JointIndex[4];
+};
+
+struct cBufferSkeleton
+{
+	//std::vector<DirectX::XMFLOAT4X4> JointPostion;
+	DirectX::XMFLOAT4X4 JointPostion[96];
+
+	cBufferSkeleton()
+	{
+		//JointPostion.resize(96);
+		for (int i = 0; i < 96; i++)
+		{
+			JointPostion[i] = { 1,0,0,0, 0,1,0,0, 0,0,1,0 ,0,0,0,1 };
+		}
 	}
 };

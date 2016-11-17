@@ -105,8 +105,6 @@ float4 main( INPUT_PIXEL colorFromRasterizer ) : SV_TARGET
 
 	finalColor.xyz *= color.xyz;
 	finalColor.w = color.w;
-
-
 #endif	
 
 #if USINGOLDLIGHTCODE

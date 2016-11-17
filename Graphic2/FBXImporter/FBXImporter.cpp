@@ -23,14 +23,32 @@
 //{
 //    return;
 ////}
+class Utilities
+{
+public:
+	static FbxAMatrix GetGeometryTransformation(FbxNode* m_Node);
+};
 
+FbxAMatrix Utilities::GetGeometryTransformation(FbxNode* m_Node)
+{
+	if (!m_Node)
+	{
+		throw std::exception("Null for mesh Geometry");
+	}
+
+	const FbxVector4 translation = m_Node->GetGeometricTranslation(FbxNode::eSourcePivot);
+	const FbxVector4 rotation = m_Node->GetGeometricRotation(FbxNode::eSourcePivot);
+	const FbxVector4 scaling = m_Node->GetGeometricScaling(FbxNode::eSourcePivot);
+
+	return FbxAMatrix(translation, rotation, scaling);
+}
 
 class FBXExporter
 {
-private:
+public:
 	FbxManager* m_FbxManager;
 	FbxScene* m_Scene;
-	bool m_HasAnimation;
+	bool m_HasAnimation = true;
 	std::unordered_map<unsigned int, CtrlPoint*>m_ControlPoints;
 	unsigned int m_TriangleCount;
 	std::vector<Triangle>m_Triangles;
@@ -40,6 +58,7 @@ private:
 	std::string m_AnimationName;
 	LARGE_INTEGER m_CPUFreq;
 
+public:
 	void ProcessSkeletonHeirarchy(FbxNode* m_rootNode);
 	void ProcessSkeletonHeirarchyRecursively(FbxNode* m_Node, int m_Depth, int myIndex, int m_ParentIndex);
 	void ProcessControlPoints(FbxNode* m_Node);
@@ -51,8 +70,6 @@ private:
 	void ReadTangent(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_VertexCounter, DirectX::XMFLOAT3& m_outTangent);
 	void ProcessGeometry(FbxNode *m_Node);
 };
-
-
 
 extern "C" __declspec(dllexport) bool StoreFBXDLLinBin(const char * path,const char* newFile)
 {
@@ -192,8 +209,10 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 		return false;
 
 
-
+	FBXExporter bob;
+	bob.m_Scene = pFbxScene;
 	FbxNode* rootNode = pFbxScene->GetRootNode();
+	bob.ProcessSkeletonHeirarchy(rootNode);
 
 	if (rootNode)
 	{
@@ -206,10 +225,15 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
 
 			if (AttributeType != FbxNodeAttribute::eMesh)
+			{
 				continue;
-
+			}
+			
+			bob.ProcessGeometry(pFbxChildNode);
+			
 			fbxsdk::FbxMesh* pMesh = (fbxsdk::FbxMesh*)pFbxChildNode->GetNodeAttribute();
-
+			//std::vector<SkinnedVertex> dave;
+			//ProcessBoneWeight_Index(pMesh, dave);
 			FbxVector4* pVertices = pMesh->GetControlPoints();
 			FbxVector4 pTangent;
 			FbxVector4 pNormals;
@@ -272,6 +296,81 @@ extern "C" __declspec(dllexport) bool LoadFBXDLL(const char * path, std::vector<
 	pFbxScene->Destroy();
 	g_pFbxManager->Destroy();
 	return true;
+}
+
+extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vector<SkinnedVertex>& outVertices, Skeleton& outSkeleton)
+{
+
+	int check = 0;
+	FbxManager* g_pFbxManager = nullptr;
+
+	if (g_pFbxManager == nullptr)
+	{
+		g_pFbxManager = FbxManager::Create();
+
+		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+		g_pFbxManager->SetIOSettings(pIOsettings);
+	}
+
+	FbxImporter* pImporter = FbxImporter::Create(g_pFbxManager, "");
+	FbxScene* pFbxScene = FbxScene::Create(g_pFbxManager, "");
+
+	bool Successs = pImporter->Initialize(path, -1, g_pFbxManager->GetIOSettings());
+
+	if (!Successs)
+		return false;
+
+	Successs = pImporter->Import(pFbxScene);
+	if (!Successs)
+		return false;
+
+
+	FBXExporter bob;
+	bob.m_Scene = pFbxScene;
+	FbxNode* rootNode = pFbxScene->GetRootNode();
+	bob.ProcessSkeletonHeirarchy(rootNode);
+
+	if (rootNode)
+	{
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+		{
+			FbxNode* pFbxChildNode = rootNode->GetChild(i);
+			if (pFbxChildNode->GetNodeAttribute() == NULL)
+				continue;
+
+			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+			if (AttributeType != FbxNodeAttribute::eMesh)
+				continue;
+
+			bob.ProcessGeometry(pFbxChildNode);
+			
+			SkinnedVertex vertice;
+			
+			for (size_t i = 0; i < bob.m_Vertices.size(); i++)
+			{
+				vertice.m_Positon = bob.m_Vertices[i].m_Position;
+				vertice.m_Positon.x = vertice.m_Positon.x;
+				vertice.m_Normal = bob.m_Vertices[i].m_Normal;
+				vertice.m_Normal.x = vertice.m_Normal.x;
+				vertice.m_UV = bob.m_Vertices[i].m_UV;
+				
+				for (size_t j = 0; j < 4; j++)
+					vertice.m_JointIndex[j] = bob.m_Vertices[i].m_VertexBlendingInfos[j].m_BlendingIndex;
+
+				vertice.m_JointWeight.x = bob.m_Vertices[i].m_VertexBlendingInfos[0].m_BlendingWeight;
+				vertice.m_JointWeight.y = bob.m_Vertices[i].m_VertexBlendingInfos[1].m_BlendingWeight;
+				vertice.m_JointWeight.z = bob.m_Vertices[i].m_VertexBlendingInfos[2].m_BlendingWeight;
+
+				outVertices.push_back(vertice);
+			}
+			outSkeleton = bob.m_Skeleton;
+
+
+
+		}
+	}
+
 }
 
 extern "C" __declspec(dllexport) void WriteFBXDLLtoBinary(const char * path, DirectX::XMFLOAT4 verts, DirectX::XMFLOAT3 uv, DirectX::XMFLOAT3 norm)
@@ -351,7 +450,7 @@ void FBXExporter::ProcessSkeletonHeirarchy(FbxNode* m_rootNode)
 	for (int childIndex = 0; childIndex < m_rootNode->GetChildCount(); ++childIndex)
 	{
 		FbxNode* currNode = m_rootNode->GetChild(childIndex);
-
+		ProcessSkeletonHeirarchyRecursively(currNode, 0, 0, -1);
 	}
 }
 
@@ -419,11 +518,15 @@ void FBXExporter::ProcessJointsAndAnimations(FbxNode* m_Node)
 			currentCluster->GetTransformMatrix(transformMatrix);
 			//Transformation of the cluster(joint) at binding time from joint space to world space
 			currentCluster->GetTransformLinkMatrix(transformLinkMatrix);
-			globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform;
+			globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform; // this is the bind pose 
 
 			//Update the info in mSkeleton
-			m_Skeleton.m_Joints[currentJointIndex].m_GlobalBindPoseInverse = globalBindposeInverseMatrix;
-			m_Skeleton.m_Joints[currentJointIndex].m_Node = currentCluster->GetLink();
+			//m_Skeleton.m_Joints[currentJointIndex].m_GlobalBindPoseInverse = globalBindposeInverseMatrix;
+			for (int i = 0; i < 4; i++)
+				for (int j = 0; j < 4; j++)
+					m_Skeleton.m_Joints[currentJointIndex].m_GlobalBindPoseInverse.m[i][j] = static_cast<float>(globalBindposeInverseMatrix.mData[i][j]);
+					//m_Skeleton.m_Joints[currentJointIndex].m_Node = currentCluster->GetLink();
+
 
 			//Associate each joint with the control points it affects
 			unsigned int numOfIndices = currentCluster->GetControlPointIndicesCount();
@@ -452,7 +555,26 @@ void FBXExporter::ProcessJointsAndAnimations(FbxNode* m_Node)
 				*currentAnimation = new KeyFrame();
 				(*currentAnimation)->m_FrameNum = i;
 				FbxAMatrix currentTransformOffset = m_Node->EvaluateGlobalTransform(currentTime) * geometryTransform;
-				(*currentAnimation)->m_GlobalTransform = currentTransformOffset.Inverse() * currentCluster->GetLink()->EvaluateGlobalTransform(currentTime);
+				currentTransformOffset = currentTransformOffset.Inverse() *  currentCluster->GetLink()->EvaluateGlobalTransform(currentTime);
+
+				//(*currentAnimation)->m_GlobalTransform = currentTransformOffset;
+				for (int i = 0; i < 4; i++)
+					for (int j = 0; j < 4; j++)
+						(*currentAnimation)->m_GlobalTransform.m[i][j] = static_cast<float>(currentTransformOffset.mData[i][j]);
+
+				(*currentAnimation)->RotationQuat.x = (float)currentTransformOffset.GetQ().mData[0];
+				(*currentAnimation)->RotationQuat.y = (float)currentTransformOffset.GetQ().mData[1];
+				(*currentAnimation)->RotationQuat.z = (float)currentTransformOffset.GetQ().mData[2];
+				(*currentAnimation)->RotationQuat.w = (float)currentTransformOffset.GetQ().mData[3];
+
+				(*currentAnimation)->Scale.x = (float)currentTransformOffset.GetS().mData[0];
+				(*currentAnimation)->Scale.y = (float)currentTransformOffset.GetS().mData[1];
+				(*currentAnimation)->Scale.z = (float)currentTransformOffset.GetS().mData[2];
+
+				(*currentAnimation)->Translation.x = (float)currentTransformOffset.GetT().mData[0];
+				(*currentAnimation)->Translation.y = (float)currentTransformOffset.GetT().mData[1];
+				(*currentAnimation)->Translation.z = (float)currentTransformOffset.GetT().mData[2];
+				
 				currentAnimation = &((*currentAnimation)->m_Next);
 			}
 		}
@@ -509,7 +631,7 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 		{
 			int index = vertexUV->GetIndexArray().GetAt(m_CtrlPointIndex);
 			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
-			outUV.y = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
+			outUV.y = 1.0 -static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
 		}
 			break;
 
@@ -524,8 +646,11 @@ void FBXExporter::ReadUV(FbxMesh* m_Mesh, int m_CtrlPointIndex, int m_TextureUVI
 		case FbxGeometryElement::eDirect:
 		case FbxGeometryElement::eIndexToDirect:
 		{
-			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[0]);
-			outUV.y = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_CtrlPointIndex).mData[1]);
+			//int UvIndex = m_Mesh->GetTextureUVIndex(j, k);
+			//pUVs = lUVElement->GetDirectArray().GetAt(UvIndex);
+
+			outUV.x = static_cast<float>(vertexUV->GetDirectArray().GetAt(m_TextureUVIndex).mData[0]);
+			outUV.y = 1.0f - static_cast<float>(vertexUV->GetDirectArray().GetAt(m_TextureUVIndex).mData[1]);
 		}
 			break;
 
@@ -692,11 +817,12 @@ void FBXExporter::ProcessMesh(FbxNode* m_Node)
 			{
 				ReadUV(currentMesh, ctrlPointIndex, currentMesh->GetTextureUVIndex(i, j), k, UV[j][k]);
 			}
-
+			//ReadTangent(currentMesh, ctrlPointIndex, vertexCounter, tangent[j]);
 			PNTIWVertex temp;
 			temp.m_Position = currentCtrlPoint->m_Position;
 			temp.m_Normal = normal[j];
 			temp.m_UV = UV[j][0];
+			temp.m_Tangent = tangent[j];
 
 			//Copying the blending info from each control point
 			for (unsigned int i = 0; i < currentCtrlPoint->m_BlendingInfo.size(); i++)
@@ -745,4 +871,3 @@ void FBXExporter::ProcessGeometry(FbxNode *m_Node)
 		ProcessGeometry(m_Node->GetChild(i));
 	}
 }
-

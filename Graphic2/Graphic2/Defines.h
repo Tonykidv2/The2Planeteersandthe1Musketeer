@@ -9,11 +9,11 @@
 #include <thread>
 #include "Load Model.h"
 #include "DDSTextureLoader.h"
-
-
+#include "../FBXImporter/Vertex.h"
 using namespace DirectX;
 using namespace std;
 #include "LightHelper.h"
+#include "SkinnedAnimations.h"
 
 #define RASTER_WIDTH 1280.0f
 #define RASTER_HEIGHT 720.0f
@@ -53,6 +53,7 @@ struct TRANSLATOR
 	float Scale;
 	XMFLOAT3 padding;
 };
+
 
 struct LightSources
 {

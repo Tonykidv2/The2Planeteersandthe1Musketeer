@@ -22,6 +22,7 @@
 #include "HullTriangleShader.csh"
 #include "VertexTriangleShader.csh"
 #include "PixelTriangleShader.csh"
+#include "SkinnedVertexShader.csh"
 #include "Font.h"
 #include "SpriteBatch.h"
 #include "SimpleMath.h"
@@ -45,6 +46,10 @@ bool g_ScreenChanged;
 bool g_Minimized;
 XMMATRIX g_newProjection;
 LPARAM g_lParam;
+
+
+
+
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -70,7 +75,7 @@ class DEMO_APP
 	ID3D11Buffer*					IndexBufferDeadpool = nullptr;
 	ID3D11Buffer*					VertexBufferSource = nullptr;
 	ID3D11Buffer*					IndexBufferSource = nullptr;
-
+	
 	
 	//Instances
 	ID3D11Buffer*					InstanceBuffer;
@@ -158,6 +163,7 @@ class DEMO_APP
 	bool makeIt1 = false;
 	bool makeIt2 = false;
 	bool makeIt3 = false;
+	bool animationdone = false;
 #if USINGOLDLIGHTCODE
 	LightSources Lights;
 #endif
@@ -173,18 +179,26 @@ class DEMO_APP
 	bool ToggleBumpMap;
 	void CreateVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
 	void CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, unsigned int* IndexCount);
+	void CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
+		unsigned int* IndexCount, AnimationController* skeleton);
 	ID3D11Buffer* BindPoseVertex = nullptr;
 	ID3D11Buffer* BindPoseIndex = nullptr;
 	ID3D11ShaderResourceView* BindPoseTexture = nullptr;
 	ID3D11ShaderResourceView* BindPoseNormTexture = nullptr;
 	unsigned BindPoseIndexCount;
 	DEMO_APP() {}
-
+	
 	ID3D11Buffer* TeddyPoseVertex = nullptr;
 	ID3D11Buffer* TeddyPoseIndex = nullptr;
 	ID3D11ShaderResourceView* TeddyPoseTexture = nullptr;
 	ID3D11ShaderResourceView* TeddyPoseNormTexture = nullptr;
 	unsigned TeddyPoseIndexCount;
+	cBufferSkeleton TeddySkeleton;
+	ID3D11VertexShader* SkinningShader = nullptr;
+	ID3D11InputLayout* SkinningVertexLayout = nullptr;
+	ID3D11Buffer* TeddySkeleonBuffer = nullptr;
+	AnimationController BoxAnimation;
+	float timePOS = 0;
 public:
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -201,7 +215,6 @@ public:
 
 DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
-
 
 	application = hinst; 
 	appWndProc = proc; 
@@ -485,17 +498,17 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	/*StoreFBXDLLinBin("Box_BindPose.fbx", "Box_BindPose.bin");
 	StoreFBXDLLinBin("SwordFBX.fbx", "SwordFBX.bin");
 	StoreFBXDLLinBin("Teddy_Attack1.fbx", "Teddy_Attack1.bin");*/
+
 #pragma region Creating DeadpoolSword
 	//CreateVertexIndexBufferModel(&VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "deadpool sword 1.obj", &SwordIndexCount);
-	thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.bin", &SwordIndexCount);
-	
+	//thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.bin", &SwordIndexCount);
+	//thread thread1(&DEMO_APP::CreateVertexIndexBufferModel1, this, &VertexBufferSword, &IndexBufferSword, g_pd3dDevice, "SwordFBX.fbx", &SwordIndexCount);
 #pragma endregion
 
 #pragma region Creating Deadpool
 	//CreateVertexIndexBufferModel(&VertexBufferDeadpool, &IndexBufferDeadpool, g_pd3dDevice, "deadpool.obj", &DeadpoolIndexCount);
 	thread thread2(&DEMO_APP::CreateVertexIndexBufferModel, this, &VertexBufferDeadpool, &IndexBufferDeadpool, g_pd3dDevice, "deadpool.obj", &DeadpoolIndexCount);
 #pragma endregion
-
 
 #pragma region creating LightSource
 	LoadModel::LoadObj("LightSource.obj", verts, uvs, norms,
@@ -597,6 +610,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	//Instance Shader
 	g_pd3dDevice->CreateVertexShader(VertexShaderInstance, sizeof(VertexShaderInstance), NULL, &DirectVertShader[2]);
+	//Skinning Shader
+	g_pd3dDevice->CreateVertexShader(SkinnedVertexShader, sizeof(SkinnedVertexShader), NULL, &SkinningShader);
 
 	D3D11_INPUT_ELEMENT_DESC LayoutComplex[] =
 	{
@@ -613,10 +628,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
+	D3D11_INPUT_ELEMENT_DESC Layout_Skinned[]=
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA },
+		{ "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "WEIGHT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BONEINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
 
 	g_pd3dDevice->CreateInputLayout(LayoutComplex, 5, Trivial_VS, sizeof(Trivial_VS), &DirectInputLay[0]);
 	g_pd3dDevice->CreateInputLayout(LayoutSimple, 3, VertexShader, sizeof(VertexShader), &DirectInputLay[1]);
-
+	g_pd3dDevice->CreateInputLayout(Layout_Skinned, 6, SkinnedVertexShader, sizeof(SkinnedVertexShader), &SkinningVertexLayout);
 #pragma endregion
 
 #pragma region Costant Buffers
@@ -661,6 +685,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	InstanceDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	g_pd3dDevice->CreateBuffer(&InstanceDesc, NULL, &InstanceCostantBuffer);
 
+	D3D11_BUFFER_DESC SkinningDesc;
+	ZeroMemory(&SkinningDesc, sizeof(SkinningDesc));
+	SkinningDesc.Usage = D3D11_USAGE_DYNAMIC;
+	SkinningDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	SkinningDesc.ByteWidth = sizeof(cBufferSkeleton);
+	SkinningDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	g_pd3dDevice->CreateBuffer(&SkinningDesc, NULL, &TeddySkeleonBuffer);
+
 	D3D11_BUFFER_DESC TesselDesc;
 	ZeroMemory(&TesselDesc, sizeof(TesselDesc));
 	TesselDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -668,6 +700,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	TesselDesc.ByteWidth = sizeof(Scaling);
 	TesselDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	g_pd3dDevice->CreateBuffer(&TesselDesc, NULL, &CostantBufferTessScale);
+
 #pragma endregion
 
 #pragma region Depth Buffer
@@ -919,7 +952,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #pragma endregion
 
-	thread1.detach();
+	//thread1.detach();
 	thread2.detach();
 	thread3.detach();
 
@@ -933,9 +966,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #pragma endregion
 
 
-	thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.bin", &BindPoseIndexCount);
-	thread4.join();
-	thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
+	//thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.bin", &BindPoseIndexCount);
+	//thread4.join();
+	//thread thread4(&DEMO_APP::CreateVertexIndexBufferModel1, this, &BindPoseVertex, &BindPoseIndex, g_pd3dDevice, "Box_BindPose.fbx", &BindPoseIndexCount);
+	//thread4.join();
+	//thread thread5(&DEMO_APP::CreateVertexIndexBufferModel1, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Teddy_Attack1.bin", &TeddyPoseIndexCount);
+	//thread5.detach();
+	Skeleton skel;
+	thread thread5(&DEMO_APP::CreateSkinnedVertexIndexBufferModel, this, &TeddyPoseVertex, &TeddyPoseIndex, g_pd3dDevice, "Box_Attack.fbx", &TeddyPoseIndexCount, &BoxAnimation);
 	thread5.detach();
 	TimeWizard.Restart();
 
@@ -1136,9 +1174,8 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	//norms.clear();
 	//uvs.clear();
 	LoadModel::LoadFBXinBin(Path, verts, uvs, norms, tangent);
-		//LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
+	//LoadModel::LoadFBX(Path, verts, uvs, norms, tangent);
 	
-
 	VERTEX* Model = new VERTEX[verts.size()];
 	unsigned int* ModelIndices = new unsigned int[verts.size()];
 
@@ -1233,6 +1270,113 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 	norm_indices.clear();
 }
 
+void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path,
+	unsigned int* IndexCount, AnimationController* skeleton)
+{
+	std::vector<SkinnedVertex> SkinVert;
+	Skeleton cSkeleton;
+
+	LoadFBXDLLNEW(Path, SkinVert, cSkeleton);
+
+	unsigned int* ModelIndices = new unsigned int[SkinVert.size()];
+
+	for (size_t i = 0; i < SkinVert.size(); i++)
+	{
+		ModelIndices[i] = i;
+	}
+
+
+	for (size_t i = 0; i < SkinVert.size() - 2; i += 3)
+	{
+		XMFLOAT3 v0 = SkinVert[i + 0].m_Positon;
+		XMFLOAT3 v1 = SkinVert[i + 1].m_Positon;
+		XMFLOAT3 v2 = SkinVert[i + 2].m_Positon;
+
+		XMFLOAT2 uv0 = SkinVert[i + 0].m_UV;
+		XMFLOAT2 uv1 = SkinVert[i + 1].m_UV;
+		XMFLOAT2 uv2 = SkinVert[i + 2].m_UV;
+
+		XMFLOAT4 deltaPos1 = XMFLOAT4(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z, 0 - 0);
+		XMFLOAT4 deltaPos2 = XMFLOAT4(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z, 0 - 0);
+
+		XMFLOAT3 deltaUV1 = XMFLOAT3(uv1.x - uv0.x, uv1.y - uv0.y, 0 - 0);
+		XMFLOAT3 deltaUV2 = XMFLOAT3(uv2.x - uv0.x, uv2.y - uv0.y, 0 - 0);
+
+		float ratio = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+
+		XMFLOAT4 deltaPos1uv2 = XMFLOAT4(deltaPos1.x * deltaUV2.y, deltaPos1.y * deltaUV2.y, deltaPos1.z * deltaUV2.y, deltaPos1.w * deltaUV2.y);
+		XMFLOAT4 deltaPos2uv1 = XMFLOAT4(deltaPos2.x * deltaUV1.y, deltaPos2.y * deltaUV1.y, deltaPos2.z * deltaUV1.y, deltaPos2.w * deltaUV1.y);
+
+		XMFLOAT3 tangent = XMFLOAT3((deltaPos1uv2.x - deltaPos2uv1.x) * ratio, (deltaPos1uv2.y - deltaPos2uv1.y) * ratio,
+			(deltaPos1uv2.z - deltaPos2uv1.z) * ratio);
+
+		/*XMFLOAT4 deltaPos2uv1b = XMFLOAT4(deltaPos2.x * deltaUV1.x, deltaPos2.y * deltaUV1.x, deltaPos2.z * deltaUV1.x, deltaPos2.x * deltaUV1.x);
+		XMFLOAT4 deltaPos1uv2b = XMFLOAT4(deltaPos1.x * deltaUV2.x, deltaPos1.y * deltaUV2.x, deltaPos1.z * deltaUV2.x, deltaPos1.w * deltaUV2.x);
+
+		XMFLOAT3 bitangent = XMFLOAT3((deltaPos2uv1b.x - deltaPos1uv2b.x) * ratio, (deltaPos2uv1b.y - deltaPos1uv2b.y) * ratio,
+			(deltaPos2uv1b.z - deltaPos1uv2b.z) * ratio);*/
+
+		SkinVert[i + 0].m_Tangent = tangent;
+		SkinVert[i + 1].m_Tangent = tangent;
+		SkinVert[i + 2].m_Tangent = tangent;
+
+	}
+#pragma region VertexBuffer Model
+
+	D3D11_BUFFER_DESC ModelbufferDesc;
+	ZeroMemory(&ModelbufferDesc, sizeof(ModelbufferDesc));
+	ModelbufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	ModelbufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	ModelbufferDesc.ByteWidth = (UINT)(sizeof(SkinnedVertex) * SkinVert.size());
+
+	D3D11_SUBRESOURCE_DATA sub_data_Model;
+	ZeroMemory(&sub_data_Model, sizeof(sub_data_Model));
+	sub_data_Model.pSysMem = SkinVert.data();
+	device->CreateBuffer(&ModelbufferDesc, &sub_data_Model, VertexBuffer);
+
+#pragma endregion
+
+#pragma region IndexBuffer Model
+
+	D3D11_BUFFER_DESC indexBuffDesc_Model;
+	ZeroMemory(&indexBuffDesc_Model, sizeof(indexBuffDesc_Model));
+	indexBuffDesc_Model.Usage = D3D11_USAGE_IMMUTABLE;
+	indexBuffDesc_Model.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBuffDesc_Model.ByteWidth = (UINT)(sizeof(unsigned int) * SkinVert.size());
+
+	D3D11_SUBRESOURCE_DATA indexData_Model;
+	ZeroMemory(&indexData_Model, sizeof(indexData_Model));
+	indexData_Model.pSysMem = ModelIndices;
+	device->CreateBuffer(&indexBuffDesc_Model, &indexData_Model, IndexBuffer);
+
+#pragma endregion
+	AnimationClip Clip;
+
+	int BoneCount = cSkeleton.m_Joints.size();
+	BoneAnimation* TeddyAni = new BoneAnimation[BoneCount];
+
+	for (int i = 0; i < BoneCount; i++)
+	{
+		KeyFrame* walker;
+		walker = cSkeleton.m_Joints[i].m_Animation;
+		while (walker)
+		{
+			TeddyAni[i].Keyframes.push_back(walker);
+			walker = walker->m_Next;
+		}
+	}
+
+	for (size_t i = 0; i < BoneCount; i++)
+	{
+		Clip.BoneAnimations.push_back(&TeddyAni[i]);
+	}
+	skeleton->Anim.push_back(Clip);
+	animationdone = true;
+	*IndexCount = (unsigned int)SkinVert.size();
+	delete[] ModelIndices;
+
+}
+
 void DEMO_APP::DrawComplexModel(ID3D11Buffer* VertexBuffer, ID3D11Buffer* IndexBuffer, ID3D11ShaderResourceView* Texture, ID3D11VertexShader* vertexShader
 	, ID3D11PixelShader* pixelShader, unsigned int IndexCount, ID3D11DeviceContext* context)
 {
@@ -1322,6 +1466,11 @@ DEMO_APP * DEMO_APP::GetInstance()
 bool DEMO_APP::Run()
 {
 	TimeWizard.Signal();
+	/*timePOS += (float)TimeWizard.SmoothDelta();
+	if (animationdone)
+		BoxAnimation.Interpolate(timePOS, &TeddySkeleton.JointPostion);*/
+	/*if (animationdone)
+		BoxAnimation.Update((float)TimeWizard.Delta(), &TeddySkeleton.JointPostion);*/
 
 	float timer = (float)TimeWizard.TotalTime();
 
@@ -1330,7 +1479,7 @@ bool DEMO_APP::Run()
 		WorldShader.projectView = g_newProjection;
 		g_ScreenChanged = false;
 	}
-
+	
 	g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_StencilView);
 	g_pd3dDeviceContext->RSSetViewports(1, &g_DirectView);
 	WorldShader.ScreenHeight = g_DirectView.Height;
@@ -1580,13 +1729,11 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Unmap(constantPixelBuffer, 0);
 
 	//Sending NEW Light Info to videoCard
-	//if (lightsToggle)
-	//{
-		D3D11_MAPPED_SUBRESOURCE LightSauce;
-		g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
-		memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
-		g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
-	//}
+	D3D11_MAPPED_SUBRESOURCE LightSauce;
+	g_pd3dDeviceContext->Map(CostantBufferLights, 0, D3D11_MAP_WRITE_DISCARD, 0, &LightSauce);
+	memcpy_s(LightSauce.pData, sizeof(Lights), &Lights, sizeof(Lights));
+	g_pd3dDeviceContext->Unmap(CostantBufferLights, 0);
+	
 	//Sending instance Data to the videoCard
 	D3D11_MAPPED_SUBRESOURCE InstanceSource;
 	g_pd3dDeviceContext->Map(InstanceCostantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &InstanceSource);
@@ -1598,6 +1745,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->Map(CostantBufferTessScale, 0, D3D11_MAP_WRITE_DISCARD, 0, &SizingTesselSource);
 	memcpy_s(SizingTesselSource.pData, sizeof(Scaling), &TesselScale, sizeof(Scaling));
 	g_pd3dDeviceContext->Unmap(CostantBufferTessScale, 0);
+
 
 	g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer[0]);
 	g_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &constantBuffer[1]);
@@ -1814,7 +1962,7 @@ bool DEMO_APP::Run()
 	g_pd3dDeviceContext->IASetIndexBuffer(BindPoseIndex, DXGI_FORMAT_R32_UINT, 0);
 	if (BindPoseIndex)
 		g_pd3dDeviceContext->DrawIndexed(BindPoseIndexCount, 0, 0);
-
+		//g_pd3dDeviceContext->Draw(BindPoseIndexCount, 0);
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();
 	translating.Scale = 1.0f;
@@ -1830,7 +1978,8 @@ bool DEMO_APP::Run()
 
 #pragma region Drawing FBX Teddy-POSE Box
 	translating.Translate = XMMatrixTranslation(2, 0, 0);
-	translating.Scale = .025f;
+	translating.Scale = 1.0f;
+	//WorldShader.worldMatrix = XMMatrixRotationY(timer * 0.5f);
 	g_pd3dDeviceContext->Map(constantBuffer[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &m_mapSource2);
 	memcpy_s(m_mapSource2.pData, sizeof(TRANSLATOR), &translating, sizeof(TRANSLATOR));
 	g_pd3dDeviceContext->Unmap(constantBuffer[1], 0);
@@ -1839,23 +1988,33 @@ bool DEMO_APP::Run()
 	memcpy_s(m_mapSource.pData, sizeof(SEND_TO_VRAM_WORLD), &WorldShader, sizeof(SEND_TO_VRAM_WORLD));
 	g_pd3dDeviceContext->Unmap(constantBuffer[0], 0);
 
-	stride = sizeof(VERTEX);
+	
+
+	stride = sizeof(SkinnedVertex);
 
 	if (ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 1;
 	else if (!ToggleBumpMap)
 		VRAMPixelShader.whichTexture = 2;
 
-	g_pd3dDeviceContext->IASetInputLayout(DirectInputLay[0]);
-	g_pd3dDeviceContext->VSSetShader(DirectVertShader[0], NULL, NULL);
+	g_pd3dDeviceContext->IASetInputLayout(SkinningVertexLayout);
+	g_pd3dDeviceContext->VSSetShader(SkinningShader, NULL, NULL);
 	g_pd3dDeviceContext->PSSetShader(DirectPixShader[0], NULL, NULL);
-	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &TeddyPoseTexture);
-	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &TeddyPoseNormTexture);
+	g_pd3dDeviceContext->VSSetConstantBuffers(2, 1, &TeddySkeleonBuffer);
+	g_pd3dDeviceContext->PSSetShaderResources(1, 1, &BindPoseTexture);
+	g_pd3dDeviceContext->PSSetShaderResources(2, 1, &BindPoseNormTexture);
 	g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &TeddyPoseVertex, &stride, &offsets);
 	g_pd3dDeviceContext->IASetIndexBuffer(TeddyPoseIndex, DXGI_FORMAT_R32_UINT, 0);
 	if (TeddyPoseIndex)
+	{
+		if (animationdone)
+			BoxAnimation.Update((float)TimeWizard.Delta() * 2, &TeddySkeleton.JointPostion);
+		D3D11_MAPPED_SUBRESOURCE TeddySkeleton_Map;
+		g_pd3dDeviceContext->Map(TeddySkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &TeddySkeleton_Map);
+		memcpy_s(TeddySkeleton_Map.pData, sizeof(cBufferSkeleton), TeddySkeleton.JointPostion, sizeof(cBufferSkeleton));
+		g_pd3dDeviceContext->Unmap(TeddySkeleonBuffer, 0);
 		g_pd3dDeviceContext->DrawIndexed(TeddyPoseIndexCount, 0, 0);
-
+	}
 	translating.Translate = XMMatrixTranslation(0, 0, 0);
 	translating.Rotation = XMMatrixIdentity();
 	translating.Scale = 1.0f;
@@ -2021,7 +2180,7 @@ bool DEMO_APP::Run()
 	spritebatch->End();
 	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
 #pragma endregion
-
+	
 	g_pSwapChain->Present(0, 0);
 
 	return true; 
@@ -2131,15 +2290,22 @@ void DEMO_APP::Clean3d()
 	
 
 	if(TeddyPoseVertex)
-	TeddyPoseVertex->Release();
+		TeddyPoseVertex->Release();
 	if(TeddyPoseIndex)
-	TeddyPoseIndex->Release();
+		TeddyPoseIndex->Release();
 	if(TeddyPoseTexture)
-	TeddyPoseTexture->Release();
+		TeddyPoseTexture->Release();
 	if(TeddyPoseNormTexture)
-	TeddyPoseNormTexture->Release();
+		TeddyPoseNormTexture->Release();
+	if(SkinningShader)
+		SkinningShader->Release();
+	if(SkinningVertexLayout)
+		SkinningVertexLayout->Release();
+	if (TeddySkeleonBuffer)
+		TeddySkeleonBuffer->Release();
 	//////AAron////////
 	m_text->Release();
+	m_text2->Release();
 	m_textFont.release();
 	spritebatch.release();
 }
