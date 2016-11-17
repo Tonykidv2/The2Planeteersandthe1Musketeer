@@ -2008,11 +2008,14 @@ bool DEMO_APP::Run()
 	
 	spritebatch->Begin();
 	spritebatch->SetViewport(g_DirectView);
-	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON)&0x1))
+	if (GetAsyncKeyState(VK_RBUTTON) & 0x1)
 	{
-		sound->Play();
+		if (dest.Contains(CUR.x, CUR.y))
+		{
+			sound->Play();
 			textureSwitch = !textureSwitch;
 			lightsToggle = true;
+		}
 	}
 	if (!textureSwitch)
 	{
