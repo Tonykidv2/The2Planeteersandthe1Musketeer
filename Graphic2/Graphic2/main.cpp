@@ -2,7 +2,9 @@
 //************************************************************
 //************ INCLUDES & DEFINES ****************************
 //************************************************************
-
+#define CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 
 #include "XTime.h"
 #include "Defines.h"
@@ -1273,6 +1275,7 @@ void DEMO_APP::CreateVertexIndexBufferModel1(ID3D11Buffer** VertexBuffer, ID3D11
 void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, ID3D11Buffer** IndexBuffer, ID3D11Device* device, const char* Path, const char* otherAni,
 	unsigned int* IndexCount, AnimationController* skeleton)
 {
+	
 	std::vector<SkinnedVertex> SkinVert;
 	Skeleton cSkeleton;
 	Skeleton dSkeleton;
@@ -1355,36 +1358,41 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 	AnimationClip Clip2;
 	size_t BoneCount = cSkeleton.m_Joints.size();
 	size_t BoneCount2 = dSkeleton.m_Joints.size();
-	BoneAnimation* Ani = new BoneAnimation[BoneCount];
-	BoneAnimation* Ani2 = new BoneAnimation[BoneCount2];
+	std::vector<BoneAnimation> Ani; // = new BoneAnimation[BoneCount];
+	std::vector<BoneAnimation> Ani2; // = new BoneAnimation[BoneCount2];
 
+	
 	for (int i = 0; i < BoneCount; i++)
 	{
 		KeyFrame* walker;
+		BoneAnimation temp;
 		walker = cSkeleton.m_Joints[i].m_Animation;
 		while (walker)
 		{
-			Ani[i].Keyframes.push_back(walker);
+			temp.Keyframes.push_back(walker);
 			walker = walker->m_Next;
 		}
+		Ani.push_back(temp);
 	}
 	for (int i = 0; i < BoneCount2; i++)
 	{
 		KeyFrame* walker;
+		BoneAnimation temp;
 		walker = dSkeleton.m_Joints[i].m_Animation;
 		while (walker)
 		{
-			Ani2[i].Keyframes.push_back(walker);
+			temp.Keyframes.push_back(walker);
 			walker = walker->m_Next;
 		}
+		Ani2.push_back(temp);
 	}
 	for (size_t i = 0; i < BoneCount; i++)
 	{
-		Clip.BoneAnimations.push_back(&Ani[i]);
+		Clip.BoneAnimations.push_back(Ani[i]);
 	}
 	for (size_t i = 0; i < BoneCount2; i++)
 	{
-		Clip2.BoneAnimations.push_back(&Ani2[i]);
+		Clip2.BoneAnimations.push_back(Ani2[i]);
 	}
 	skeleton->Anim.push_back(Clip);
 	skeleton->Anim.push_back(Clip2);
@@ -2222,6 +2230,16 @@ bool DEMO_APP::ShutDown()
 {
 	Clean3d();
 	
+	for (size_t i = 0; i < MageAnimation.Anim.size(); i++)
+	{
+		for (size_t k = 0; k < MageAnimation.Anim[i].BoneAnimations.size(); k++)
+		{
+			for (size_t j = 0; j < MageAnimation.Anim[i].BoneAnimations[k].Keyframes.size(); j++)
+			{
+				delete MageAnimation.Anim[i].BoneAnimations[k].Keyframes[j];
+			}
+		}
+	}
 	UnregisterClass( L"DirectXApplication", application ); 
 	return true;
 }
@@ -2349,6 +2367,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLi
 LRESULT CALLBACK WndProc(HWND hWnd,	UINT message, WPARAM wparam, LPARAM lparam );		
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE, LPTSTR, int )
 {
+
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	_CrtSetBreakAlloc(-1L);
+
 	srand(unsigned int(time(0)));
 	DEMO_APP myApp(hInstance,(WNDPROC)WndProc);	
     MSG msg; ZeroMemory( &msg, sizeof( msg ) );

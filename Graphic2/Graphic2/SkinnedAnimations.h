@@ -23,11 +23,11 @@ struct AnimationClip
 
 	void Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[50])const;
 
-	std::vector<BoneAnimation*> BoneAnimations;
+	std::vector<BoneAnimation> BoneAnimations;
 
 	~AnimationClip()
 	{
-		
+		BoneAnimations.clear();
 	}
 };
 
@@ -39,9 +39,25 @@ struct AnimationController
 
 	AnimationController()
 	{
-		CurrTime = 0.1f;
+		CurrTime = 0.95f;
 		WhichAnimation = 0;
+		
 	}
 	void Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)[50]);
 	
+};
+
+struct AnimationBlending
+{
+	float CurrTime;
+	float TimeOut;
+
+	bool active;
+	void Update(float _dt, AnimationClip fromthis, AnimationClip ToThis, DirectX::XMFLOAT4X4(*OutTransform)[50]);
+
+	AnimationBlending()
+	{
+		active = false;
+		TimeOut = 1.0;
+	}
 };

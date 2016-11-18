@@ -18,6 +18,7 @@ void BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M)const
 {
 	if (t <= Keyframes.front()->m_FrameNum)
 	{
+		
 		DirectX::XMVECTOR S = DirectX::XMLoadFloat3(&Keyframes.front()->Scale);
 		DirectX::XMVECTOR P = DirectX::XMLoadFloat3(&Keyframes.front()->Translation);
 		DirectX::XMVECTOR Q = DirectX::XMLoadFloat4(&Keyframes.front()->RotationQuat);
@@ -27,6 +28,9 @@ void BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M)const
 	}
 	else if (t >= Keyframes.back()->m_FrameNum)
 	{
+		float lerpPercent = (t / (Keyframes.back()->m_FrameNum + Keyframes[Keyframes.size() -1]->m_FrameNum));
+
+		
 		DirectX::XMVECTOR S = DirectX::XMLoadFloat3(&Keyframes.back()->Scale);
 		DirectX::XMVECTOR P = DirectX::XMLoadFloat3(&Keyframes.back()->Translation);
 		DirectX::XMVECTOR Q = DirectX::XMLoadFloat4(&Keyframes.back()->RotationQuat);
@@ -34,7 +38,7 @@ void BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M)const
 		DirectX::XMVECTOR zero = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		DirectX::XMStoreFloat4x4(&M, DirectX::XMMatrixAffineTransformation(S, zero, Q, P));
 	}
-	else
+	else 
 	{
 		for (UINT i = 0; i < Keyframes.size() - 1; ++i)
 		{
@@ -57,11 +61,12 @@ void BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M)const
 
 				DirectX::XMVECTOR zero = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 				DirectX::XMStoreFloat4x4(&M, DirectX::XMMatrixAffineTransformation(S, zero, Q, P));
-
+				
 				break;
 			}
 		}
 	}
+	
 }
 
 
@@ -71,9 +76,9 @@ float AnimationClip::GetClipStartTime()const
 	float t = FLT_MAX;
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
-		if (BoneAnimations[i]->Keyframes.size() == 0)
+		if (BoneAnimations[i].Keyframes.size() == 0)
 			continue;
-		t = min(t, BoneAnimations[i]->GetStartTime());
+		t = min(t, BoneAnimations[i].GetStartTime());
 	}
 
 	return t;
@@ -85,9 +90,9 @@ float AnimationClip::GetClipEndTime()const
 	float t = 0.0f;
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
-		if (BoneAnimations[i]->Keyframes.size() == 0)
+		if (BoneAnimations[i].Keyframes.size() == 0)
 			continue;
-		t = max(t, BoneAnimations[i]->GetEndTime());
+		t = max(t, BoneAnimations[i].GetEndTime());
 	}
 
 	return t;
@@ -97,9 +102,9 @@ void AnimationClip::Interpolate(float t, DirectX::XMFLOAT4X4(*boneTransforms)[50
 {
 	for (unsigned int i = 0; i < BoneAnimations.size(); ++i)
 	{
-		if (BoneAnimations[i]->Keyframes.size() == 0)
+		if (BoneAnimations[i].Keyframes.size() == 0)
 			continue;
-		BoneAnimations[i]->Interpolate(t, (*boneTransforms)[i]);
+		BoneAnimations[i].Interpolate(t, (*boneTransforms)[i]);
 	}
 }
 
@@ -113,8 +118,13 @@ void AnimationController::Update(float _dt, DirectX::XMFLOAT4X4(*boneTransforms)
 	}
 	CurrTime += _dt;
 
-	if (CurrTime >= Anim[WhichAnimation].GetClipEndTime())
-		CurrTime = 0.97f;
-
 	Anim[WhichAnimation].Interpolate(CurrTime, boneTransforms);
+
+	if (CurrTime >= Anim[WhichAnimation].GetClipEndTime())
+		CurrTime = 0.95f;
+}
+
+void AnimationBlending::Update(float _dt, AnimationClip fromthis, AnimationClip ToThis, DirectX::XMFLOAT4X4(*OutTransform)[50])
+{
+	
 }

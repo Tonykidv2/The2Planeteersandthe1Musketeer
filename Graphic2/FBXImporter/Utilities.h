@@ -34,6 +34,7 @@ struct KeyFrame
 	KeyFrame* m_Next;
 
 	KeyFrame() : m_Next(nullptr) {}
+	
 };
 
 struct Joint

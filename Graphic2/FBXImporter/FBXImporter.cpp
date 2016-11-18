@@ -303,12 +303,12 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 
 	int check = 0;
 	FbxManager* g_pFbxManager = nullptr;
-
+	FbxIOSettings* pIOsettings = nullptr;
 	if (g_pFbxManager == nullptr)
 	{
 		g_pFbxManager = FbxManager::Create();
 
-		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
+		pIOsettings = FbxIOSettings::Create(g_pFbxManager, IOSROOT);
 		g_pFbxManager->SetIOSettings(pIOsettings);
 	}
 
@@ -324,7 +324,8 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 	if (!Successs)
 		return false;
 
-
+	pImporter->Destroy();
+	
 	FBXExporter FirstAnim;
 	FirstAnim.m_Scene = pFbxScene;
 	FbxNode* rootNode = pFbxScene->GetRootNode();
@@ -368,6 +369,11 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEW(const char* path, std::vecto
 
 		}
 	}
+	pFbxScene->Clear();
+	pFbxScene->Destroy();
+	if(pIOsettings != nullptr)
+		pIOsettings->Destroy();
+	g_pFbxManager->Destroy();
 	return true;
 }
 
@@ -375,6 +381,7 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEWANIM(const char* path, Skelet
 {
 	int check = 0;
 	FbxManager* g_pFbxManager = nullptr;
+	FbxIOSettings* pIOsettings = nullptr;
 
 	if (g_pFbxManager == nullptr)
 	{
@@ -396,7 +403,7 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEWANIM(const char* path, Skelet
 	if (!Successs)
 		return false;
 
-
+	pImporter->Destroy();
 	FBXExporter FirstAnim;
 	FirstAnim.m_Scene = pFbxScene;
 	FbxNode* rootNode = pFbxScene->GetRootNode();
@@ -418,7 +425,11 @@ extern "C" __declspec(dllexport) bool LoadFBXDLLNEWANIM(const char* path, Skelet
 			outSkeleton = FirstAnim.m_Skeleton;
 		}
 	}
-
+	pFbxScene->Clear();
+	pFbxScene->Destroy();
+	if (pIOsettings != nullptr)
+		pIOsettings->Destroy();
+	g_pFbxManager->Destroy();
 	return true;
 }
 
