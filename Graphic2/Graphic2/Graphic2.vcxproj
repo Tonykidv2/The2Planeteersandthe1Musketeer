@@ -77,8 +77,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\include;E:\RTA\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;F:\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc</IncludePath>
-    <ReferencePath>F:\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;E:\RTA\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;$(ReferencePath)</ReferencePath>
+    <IncludePath>..\DirectXTK-master\Inc\;$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\Program Files\Autodesk\FBX\FBX SDK\2017.0.1\include;E:\RTA\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;F:\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc</IncludePath>
+    <ReferencePath>$(SolutionDir)$(Configuration)\;F:\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;C:\Users\THe\Documents\SchoolWork\Real-Time Animation\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;E:\RTA\The2Planeteersandthe1Musketeer\Graphic2\DirectXTK-master\Inc;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -298,6 +298,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(Filename).csh</HeaderFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(Filename)</VariableName>
     </FxCompile>
     <FxCompile Include="Trivial_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
