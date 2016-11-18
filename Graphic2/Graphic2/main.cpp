@@ -3041,6 +3041,11 @@ void DEMO_APP::Clean3d()
 	m_text2->Release();
 	m_textFont.release();
 	spritebatch.release();
+	m_textbox->Release();
+	audio.release();
+	sound.release();
+	lines.clear();
+	words.clear();
 }
 
 //************************************************************
