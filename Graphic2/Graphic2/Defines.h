@@ -100,3 +100,9 @@ struct Scaling
 {
 	XMFLOAT4 scale;
 };
+struct Words
+{
+	const wchar_t* text;
+	XMFLOAT2 pos;
+	bool check;
+};
