@@ -148,7 +148,9 @@ class DEMO_APP
 	void Clean3d();
 	void DrawComplexModel(ID3D11Buffer* VertexBuffer, ID3D11Buffer* IndexBuffer, ID3D11ShaderResourceView* Texture, ID3D11VertexShader* vertexShader,
 		ID3D11PixelShader* pixelShader, unsigned int IndexCount, ID3D11DeviceContext* context);
-
+	void GetInputTextBox(wstring& text);
+	void ClearInput();
+	void InitInput();
 	SEND_TO_VRAM_WORLD WorldShader;
 	SEND_TO_VRAM_PIXEL VRAMPixelShader;
 	TRANSLATOR translating;
@@ -216,7 +218,7 @@ public:
 	void ResizingOfWindows();
 	void secondViewPort();
 	void thirdViewPort();
-	void InitInput();
+	
 };
 
 //************************************************************
@@ -971,6 +973,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_textFont.reset(new SpriteFont(g_pd3dDevice, L"Arial.spritefont"));
 	CreateDDSTextureFromFile(g_pd3dDevice, L"Green_Button.dds", NULL, &m_text);
 	CreateDDSTextureFromFile(g_pd3dDevice, L"Red_Button.dds", NULL, &m_text2);
+	CreateDDSTextureFromFile(g_pd3dDevice, L"textbox.dds", NULL, &m_textbox);
 	audio.reset(new AudioEngine(AudioEngine_Default));
 	sound.reset(new SoundEffect(audio.get(), L"LightSound.wav"));
 	InitInput();
@@ -1294,7 +1297,7 @@ void DEMO_APP::CreateSkinnedVertexIndexBufferModel(ID3D11Buffer** VertexBuffer, 
 
 	for (size_t i = 0; i < SkinVert.size(); i++)
 	{
-		ModelIndices[i] = i;
+		ModelIndices[i] =(unsigned int) i;
 	}
 
 
@@ -1640,44 +1643,46 @@ bool DEMO_APP::Run()
 #pragma endregion 
 
 #pragma region Toggle Normal Map
-
-	if (GetAsyncKeyState('M') & 0x1)
+	if (!textControls)
 	{
-		ToggleBumpMap = !ToggleBumpMap;
+		if (GetAsyncKeyState('M') & 0x1)
+		{
+			ToggleBumpMap = !ToggleBumpMap;
+		}
 	}
-
 #pragma endregion
 
 #pragma region ControlCamera
 
 	XMMATRIX T;
-
-	if (GetAsyncKeyState('W'))
+	if (!textControls)
 	{
+		if (GetAsyncKeyState('W'))
+		{
 
-		T = XMMatrixTranslation(0, 0, (float)TimeWizard.Delta());
-		m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+			T = XMMatrixTranslation(0, 0, (float)TimeWizard.Delta());
+			m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+		}
+		if (GetAsyncKeyState('S'))
+		{
+			T = XMMatrixTranslation(0, 0, (float)-TimeWizard.Delta());
+			m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
+		}
+
+		XMMATRIX L;
+		if (GetAsyncKeyState('D'))
+		{
+
+			L = XMMatrixTranslation((float)TimeWizard.Delta(), 0, 0);
+			m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
+		}
+		if (GetAsyncKeyState('A'))
+		{
+
+			L = XMMatrixTranslation((float)-TimeWizard.Delta(), 0, 0);
+			m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
+		}
 	}
-	if (GetAsyncKeyState('S'))
-	{
-		T = XMMatrixTranslation(0, 0, (float)-TimeWizard.Delta());
-		m_viewMatrix = XMMatrixMultiply(T, m_viewMatrix);
-	}
-
-	XMMATRIX L;
-	if (GetAsyncKeyState('D'))
-	{
-
-		L = XMMatrixTranslation((float)TimeWizard.Delta(), 0, 0);
-		m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
-	}
-	if (GetAsyncKeyState('A'))
-	{
-
-		L = XMMatrixTranslation((float)-TimeWizard.Delta(), 0, 0);
-		m_viewMatrix = XMMatrixMultiply(L, m_viewMatrix);
-	}
-
 	XMMATRIX C;
 	if (GetAsyncKeyState(VK_UP))
 	{
@@ -2008,11 +2013,16 @@ bool DEMO_APP::Run()
 
 		spritebatch->Begin();
 		spritebatch->SetViewport(g_DirectView);
-		if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON) & 0x1))
+		if (GetAsyncKeyState(VK_RBUTTON) & 0x1)
 		{
+		if (dest.Contains(CUR.x, CUR.y))
+		{
+
+
 			sound->Play();
 			textureSwitch = !textureSwitch;
 			lightsToggle = true;
+		}
 		}
 		if (!textureSwitch)
 		{
@@ -2031,6 +2041,83 @@ bool DEMO_APP::Run()
 		m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1), DirectX::Colors::DeepPink);
 		//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+#pragma region TextBox
+		spritebatch->Draw(m_textbox, XMFLOAT2(5, 400), NULL, DirectX::Colors::White);
+		if (GetAsyncKeyState(VK_LSHIFT) & 0x1)
+		{
+			textControls = !textControls;
+		}
+
+		if (textControls)
+		{
+			if (GetAsyncKeyState(VK_DELETE) & 0x1)
+			{
+				if (GetAsyncKeyState(VK_LSHIFT) & 0X1)
+				{
+					textControls = false;
+					ClearInput();
+				}
+				else
+					ClearInput();
+			}
+
+			if (currentLine == 0 && (wcscmp(lines[currentLine].text, L"") == 0))
+				lines[currentLine].text = L"Press Left Shift";
+			if (GetAsyncKeyState(VK_BACK) & 0x1)
+			{
+				if (!words[currentLine].empty())
+					words[currentLine].pop_back();
+				else if (words[currentLine].empty())
+					words[currentLine] = L"Press Left Shift";
+				if (currentLine != 0 && (wcscmp(words[currentLine].c_str(), L"") == 0 || currentLine >= 13))
+				{
+					currentLine--;
+					words[currentLine].pop_back();
+					lines[currentLine].check = false;
+				}
+			}
+			if (words[currentLine].size() > 18 && currentLine<13)
+			{
+
+
+				GetInputTextBox(words[currentLine]);
+				//lines[currentLine].text = words[currentLine].c_str();
+				lines[currentLine].check = true;
+				currentLine++;
+			}
+			else
+			{
+				if (currentLine < 13)
+				{
+					if (words[currentLine].size() <= 18)
+					{
+						GetInputTextBox(words[currentLine]);
+						lines[currentLine].text = words[currentLine].c_str();
+					}
+				}
+			}
+
+		}
+		for (size_t i = 0; i < lines.size(); i++)
+		{
+			if (currentLine > 13)
+				currentLine = 13;
+			if (lines[i].check)
+			{
+				m_textFont->DrawString(spritebatch.get(), lines[i].text, lines[i].pos, DirectX::Colors::Black);
+
+			}
+			else
+			{
+				if (wcscmp(lines[i].text, L"Press Left Shift") == 0)
+					break;
+				m_textFont->DrawString(spritebatch.get(), lines[currentLine].text, lines[i].pos, DirectX::Colors::Black);
+				break;
+			}
+		}
+
+#pragma endregion
+
 		spritebatch->End();
 		g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
 #pragma endregion
@@ -2289,7 +2376,7 @@ void DEMO_APP::secondViewPort()
 	if (MagePoseIndex && animationdone)
 	{
 		if (animationdone)
-			MageAnimation.Update((float)TimeWizard.Delta() * 10, &MageSkeleton.JointPostion);
+			MageAnimation.Update((float)TimeWizard.Delta() * 20, &MageSkeleton.JointPostion);
 		D3D11_MAPPED_SUBRESOURCE MageSkeleton_Map;
 		g_pd3dDeviceContext->Map(MageSkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MageSkeleton_Map);
 		memcpy_s(MageSkeleton_Map.pData, sizeof(cBufferSkeleton), MageSkeleton.JointPostion, sizeof(cBufferSkeleton));
@@ -2351,12 +2438,15 @@ void DEMO_APP::secondViewPort()
 	SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width / 2, desc.Height / 2);
 
 	spritebatch->Begin();
-	spritebatch->SetViewport(g_DirectView);
-	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON) & 0x1))
+	spritebatch->SetViewport(g_secondDirectView);
+	if ((GetAsyncKeyState(VK_RBUTTON) & 0x1))
 	{
-		sound->Play();
-		textureSwitch = !textureSwitch;
-		lightsToggle = true;
+		if (dest.Contains(CUR.x, CUR.y))
+		{
+			sound->Play();
+			textureSwitch = !textureSwitch;
+			lightsToggle = true;
+		}
 	}
 	if (!textureSwitch)
 	{
@@ -2375,6 +2465,82 @@ void DEMO_APP::secondViewPort()
 	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1), DirectX::Colors::DeepPink);
 	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+#pragma region TextBox
+	spritebatch->Draw(m_textbox, XMFLOAT2(5, 400), NULL, DirectX::Colors::White);
+	if (GetAsyncKeyState(VK_LSHIFT) & 0x1)
+	{
+		textControls = !textControls;
+	}
+
+	if (textControls)
+	{
+		if (GetAsyncKeyState(VK_DELETE) & 0x1)
+		{
+			if (GetAsyncKeyState(VK_LSHIFT) & 0X1)
+			{
+				textControls = false;
+				ClearInput();
+			}
+			else
+				ClearInput();
+		}
+
+		if (currentLine == 0 && (wcscmp(lines[currentLine].text, L"") == 0))
+			lines[currentLine].text = L"Press Left Shift";
+		if (GetAsyncKeyState(VK_BACK) & 0x1)
+		{
+			if (!words[currentLine].empty())
+				words[currentLine].pop_back();
+			else if (words[currentLine].empty())
+				words[currentLine] = L"Press Left Shift";
+			if (currentLine != 0 && (wcscmp(words[currentLine].c_str(), L"") == 0 || currentLine >= 13))
+			{
+				currentLine--;
+				words[currentLine].pop_back();
+				lines[currentLine].check = false;
+			}
+		}
+		if (words[currentLine].size() > 18 && currentLine<13)
+		{
+
+
+			GetInputTextBox(words[currentLine]);
+			//lines[currentLine].text = words[currentLine].c_str();
+			lines[currentLine].check = true;
+			currentLine++;
+		}
+		else
+		{
+			if (currentLine < 13)
+			{
+				if (words[currentLine].size() <= 18)
+				{
+					GetInputTextBox(words[currentLine]);
+					lines[currentLine].text = words[currentLine].c_str();
+				}
+			}
+		}
+
+	}
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		if (currentLine > 13)
+			currentLine = 13;
+		if (lines[i].check)
+		{
+			m_textFont->DrawString(spritebatch.get(), lines[i].text, lines[i].pos, DirectX::Colors::Black);
+
+		}
+		else
+		{
+			if (wcscmp(lines[i].text, L"Press Left Shift") == 0)
+				break;
+			m_textFont->DrawString(spritebatch.get(), lines[currentLine].text, lines[i].pos, DirectX::Colors::Black);
+			break;
+		}
+	}
+
+#pragma endregion
 	spritebatch->End();
 	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
 #pragma endregion
@@ -2621,7 +2787,7 @@ void DEMO_APP::thirdViewPort()
 	if (MagePoseIndex && animationdone)
 	{
 		if (animationdone)
-			MageAnimation.Update((float)TimeWizard.Delta() * 10, &MageSkeleton.JointPostion);
+			MageAnimation.Update((float)TimeWizard.Delta() * 20, &MageSkeleton.JointPostion);
 		D3D11_MAPPED_SUBRESOURCE MageSkeleton_Map;
 		g_pd3dDeviceContext->Map(MageSkeleonBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MageSkeleton_Map);
 		memcpy_s(MageSkeleton_Map.pData, sizeof(cBufferSkeleton), MageSkeleton.JointPostion, sizeof(cBufferSkeleton));
@@ -2671,24 +2837,27 @@ void DEMO_APP::thirdViewPort()
 
 #pragma region Drawing Text
 
-	POINT CUR;
-	GetCursorPos(&CUR);
-	ScreenToClient(window, &CUR);
-	//RECT* dest;  //Rectangle(1, 2, 336, 127);
-	ID3D11Texture2D* x;
-	m_text->GetResource((ID3D11Resource**)&x);
-	D3D11_TEXTURE2D_DESC desc;
-	x->GetDesc(&desc);
+	//POINT CUR;
+	//GetCursorPos(&CUR);
+	//ScreenToClient(window, &CUR);
+	////RECT* dest;  //Rectangle(1, 2, 336, 127);
+	//ID3D11Texture2D* x;
+	//m_text->GetResource((ID3D11Resource**)&x);
+	//D3D11_TEXTURE2D_DESC desc;
+	//x->GetDesc(&desc);
 
-	SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width / 2, desc.Height / 2);
+	//SimpleMath::Rectangle dest = SimpleMath::Rectangle(100, 100, desc.Width / 2, desc.Height / 2);
 
 	spritebatch->Begin();
-	spritebatch->SetViewport(g_DirectView);
-	if (dest.Contains(CUR.x, CUR.y) && (GetAsyncKeyState(VK_RBUTTON) & 0x1))
+	spritebatch->SetViewport(g_thirdDirectView);
+	/*if ( (GetAsyncKeyState(VK_RBUTTON) & 0x1))
 	{
-		sound->Play();
-		textureSwitch = !textureSwitch;
-		lightsToggle = true;
+		if (dest.Contains(CUR.x / 4, CUR.y / 4))
+		{
+			sound->Play();
+			textureSwitch = !textureSwitch;
+			lightsToggle = true;
+		}
 	}
 	if (!textureSwitch)
 	{
@@ -2702,14 +2871,16 @@ void DEMO_APP::thirdViewPort()
 		spritebatch->Draw(m_text, XMFLOAT2(100, 100), NULL, DirectX::Colors::Green, 0.0f, XMFLOAT2(0, 0), 0.5f, SpriteEffects::SpriteEffects_None, 0.0f);
 		m_textFont->DrawString(spritebatch.get(), L"ON", DirectX::XMFLOAT2(155, 118), DirectX::Colors::Black);
 
-	}
+	}*/
 
 	m_textFont->DrawString(spritebatch.get(), L"I did it, Hello WORLD!!", DirectX::XMFLOAT2(1, 1), DirectX::Colors::DeepPink);
 	//g_pd3dDeviceContext->ClearDepthStencilView(g_StencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	//spritebatch.reset(new SpriteBatch(g_pd3dDeviceContext));
+
 	spritebatch->End();
 	g_pd3dDeviceContext->OMSetDepthStencilState(NULL, 0);
 #pragma endregion
+
 }
 
 void DEMO_APP::InitInput()
@@ -2924,4 +3095,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
+void DEMO_APP::GetInputTextBox(wstring& text)
+{
+	bool done = false;
+
+	if (text.compare(L"Press Left Shift") == 0)
+	{
+		while (!text.empty())
+			text.pop_back();
+	}
+
+
+
+	for (char i = 32; i < 127; ++i)
+	{
+		if (GetAsyncKeyState(i) & 0x1)
+		{
+			text.push_back(i);
+		}
+
+	}
+
+
+	/*	if (text.empty()&&currentLine==0)
+	text = L"Enter";*/
+
+
+}
+void DEMO_APP::ClearInput()
+{
+	words.clear();
+	lines.clear();
+	currentLine = 0;
+	indexLineY = 400;
+	InitInput();
+}
+
 //********************* END WARNING ************************//
